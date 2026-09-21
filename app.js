@@ -164,12 +164,91 @@ function migrate(s){
   return s;
 }
 
+/* Deep type-safety: no save (old, corrupted or foreign) can ever crash the game */
+function sanitize(d){
+  const def = defaultState();
+  d.created = Number(d.created) || Date.now();
+  d.class = CLASSES[d.class] ? d.class : 'warrior';
+  d.exp = Math.max(0, Number(d.exp) || 0);
+  d.hp = Math.max(0, Number(d.hp) || 0);
+  d.gold = Math.max(0, Number(d.gold) || 0);
+  d.totalGold = Math.max(0, Number(d.totalGold) || 0);
+  d.totalQuests = Math.max(0, Number(d.totalQuests) || 0);
+  d.streak = Math.max(0, Number(d.streak) || 0);
+  d.bossKills = Math.max(0, Number(d.bossKills) || 0);
+  d.lastQuestDay = typeof d.lastQuestDay === 'string' ? d.lastQuestDay : null;
+  if(typeof d.day !== 'string') d.day = todayStr();
+  d.lastReportMonth = (d.lastReportMonth === null || typeof d.lastReportMonth === 'string') ? d.lastReportMonth : null;
+  d.character = (d.character && typeof d.character === 'object')
+    ? { name: String(d.character.name || 'Player'), avatar: String(d.character.avatar || '👁️') }
+    : { name:'Player', avatar:'👁️' };
+  d.stats = Object.assign({ STR:0, INT:0, VIT:0, CHA:0 }, d.stats || {});
+  for(const k in d.stats) d.stats[k] = Math.max(0, Number(d.stats[k]) || 0);
+  d.quests = Array.isArray(d.quests) ? d.quests.map(q => {
+    const freq = (q && (q.freq === 'weekly' || q.freq === 'monthly')) ? q.freq : 'daily';
+    return {
+      id: String((q && q.id) || ('q' + Math.random().toString(36).slice(2))),
+      name: String((q && q.name) || 'Quest'),
+      icon: String((q && q.icon) || '⭐'),
+      category: (q && CAT_STAT[q.category]) ? q.category : 'Other',
+      freq,
+      exp: Math.max(1, Number(q && q.exp) || 1),
+      gold: Math.max(0, Number(q && q.gold) || 0),
+      dailyLimit: Math.min(10, Math.max(1, Number(q && q.dailyLimit) || 1)),
+      timesDone: Math.max(0, Number(q && q.timesDone) || 0),
+      resetKey: (q && typeof q.resetKey === 'string') ? q.resetKey : periodFor(freq),
+    };
+  }) : [];
+  d.rewards = Array.isArray(d.rewards) ? d.rewards.map(r => ({
+    id: String((r && r.id) || ('r' + Math.random().toString(36).slice(2))),
+    name: String((r && r.name) || 'Reward'),
+    icon: String((r && r.icon) || '🎁'),
+    cost: Math.max(1, Number(r && r.cost) || 1),
+  })) : DEFAULT_REWARDS.map(r => ({ ...r }));
+  d.bought = Array.isArray(d.bought) ? d.bought : [];
+  d.log = Array.isArray(d.log) ? d.log.filter(l => l && Number.isFinite(l.ts)) : [];
+  d.badges = Array.isArray(d.badges) ? d.badges.filter(b => typeof b === 'string') : [];
+  d.perfect = (d.perfect && typeof d.perfect === 'object') ? d.perfect : {};
+  d.settings = Object.assign({}, DEFAULT_SETTINGS, (d.settings && typeof d.settings === 'object') ? d.settings : {});
+  for(const k of ['expBase','expGrowth','hpPenalty','hpHeal','maxHp','perfectDayGold','perfectWeekGold','perfectMonthGold','bossExp','bossGold','bossKillBonus']){
+    const n = Number(d.settings[k]);
+    if(!isFinite(n)) d.settings[k] = DEFAULT_SETTINGS[k];
+  }
+  d.settings.expBase = Math.min(500, Math.max(1, d.settings.expBase));
+  d.settings.expGrowth = Math.min(2.5, Math.max(0.5, d.settings.expGrowth));
+  d.settings.bossPhases = Math.min(5, Math.max(1, Math.round(Number(d.settings.bossPhases) || 3)));
+  for(const k of ['rankD','rankC','rankB','rankA','rankS']){
+    const n = Number(d.settings[k]);
+    if(!isFinite(n) || n < 1) d.settings[k] = DEFAULT_SETTINGS[k];
+  }
+  d.settings.sound = d.settings.sound !== false;
+  d.settings.randomQuests = d.settings.randomQuests !== false;
+  d.settings.sync = Object.assign({}, def.settings.sync, (d.settings.sync && typeof d.settings.sync === 'object') ? d.settings.sync : {});
+  if(!d.settings.sync.playerId) d.settings.sync.playerId = newPlayerId();
+  d.boss = (d.boss && typeof d.boss === 'object' && d.boss.week)
+    ? { week: String(d.boss.week), boss: String(d.boss.boss) || BOSS_POOL[0], done: Math.max(0, Math.min(10, Number(d.boss.done) || 0)) }
+    : newBoss();
+  d.bossCustomName = typeof d.bossCustomName === 'string' ? d.bossCustomName : '';
+  d.systemQuest = (d.systemQuest && typeof d.systemQuest === 'object' && d.systemQuest.name)
+    ? {
+        day: String(d.systemQuest.day || todayStr()), name: String(d.systemQuest.name),
+        icon: String(d.systemQuest.icon || '⭐'), exp: Math.max(1, Number(d.systemQuest.exp) || 30),
+        gold: Math.max(0, Number(d.systemQuest.gold) || 3), done: !!d.systemQuest.done, dismissed: !!d.systemQuest.dismissed,
+      }
+    : newSystemQuest();
+  return d;
+}
+
 function load(){
   try{
     const raw = localStorage.getItem(KEY);
     if(!raw) return null;
-    return migrate(JSON.parse(raw));
-  }catch(e){ return null; }
+    return sanitize(migrate(JSON.parse(raw)));
+  }catch(e){
+    // save is unparseable — park it aside, start fresh (a good import can still fix everything)
+    try{ localStorage.setItem(KEY + '_corrupt', raw); }catch(e2){}
+    return null;
+  }
 }
 function save(){ localStorage.setItem(KEY, JSON.stringify(state)); }
 
@@ -202,7 +281,7 @@ function periodFor(freq){
 /* ---------------- progression ---------------- */
 
 function expNeededFor(level){
-  return Math.round(state.settings.expBase * Math.pow(level, state.settings.expGrowth));
+  return Math.max(1, Math.round(state.settings.expBase * Math.pow(level, state.settings.expGrowth)));
 }
 function levelFromExp(total){
   let level = 1, rem = total;
@@ -776,7 +855,8 @@ function renderSettings(){
           <summary>How to set up cloud sync (free, ~3 min)</summary>
           <p style="margin-bottom:10px">The URL you paste is your <b>Supabase Project URL</b> — it looks like
           <code>https://abcdefgh1234.supabase.co</code>. It is NOT your app link and NOT a GitHub link.
-          <b>No files need updating</b> — the app talks to it by itself.</p>
+          <b>No files need updating</b> — the app talks to it by itself.<br>
+          ⚠️ Use the <b>"anon public"</b> key — never the "service_role / secret" key.</p>
           <ol>
             <li>Sign up free at <b>supabase.com</b> → "New project" (any region).</li>
             <li>Open <b>SQL Editor</b> → paste this → Run:
@@ -999,41 +1079,64 @@ function syncHeaders(){
   return { 'Content-Type':'application/json', 'apikey':s.key, 'Authorization':'Bearer ' + s.key };
 }
 
+async function apiErrorMessage(res){
+  let msg = 'HTTP ' + res.status;
+  try{
+    const j = await res.clone().json();
+    if(j && (j.message || j.error_description || j.msg)) msg = j.message || j.error_description || j.msg;
+  }catch(e){}
+  return msg;
+}
+
+function checkSyncCreds(showErrors){
+  const s = state.settings.sync;
+  if(!s.url || !s.key){ if(showErrors) toast('Enter your Supabase URL and key first.'); return false; }
+  if(!/^https:\/\/[a-z0-9]+\.supabase\.co/i.test(s.url)){
+    if(showErrors) toast('❌ That is not a Supabase URL. It should look like https://abcdefgh.supabase.co — copy "Project URL" from Supabase → Project Settings → API.');
+    return false;
+  }
+  if(!/^eyJ/.test(s.key)){
+    if(showErrors) toast('❌ That is not a Supabase key (keys start with "eyJ"). Use the "anon public" key from Supabase → Project Settings → API.');
+    return false;
+  }
+  return true;
+}
+
 async function syncPush(silent){
   const s = state.settings.sync;
-  if(!s.url || !s.key){ if(!silent) toast('Enter your Supabase URL and key first.'); return; }
+  if(!checkSyncCreds(!silent)) return;
   try{
     const res = await fetch(s.url.replace(/\/+$/, '') + '/rest/v1/saves', {
       method:'POST',
       headers: Object.assign({}, syncHeaders(), { 'Prefer':'resolution=merge-duplicates,return=minimal' }),
       body: JSON.stringify({ id:s.playerId, data:state, updated_at:new Date().toISOString() }),
     });
-    if(!res.ok) throw new Error('HTTP ' + res.status);
+    if(!res.ok) throw new Error(await apiErrorMessage(res));
     s.lastPush = new Date().toISOString();
     save();
-    if(!silent){ toast('☁️ Save pushed to cloud.'); renderSettings(); }
+    if(!silent){ toast('☁️ Save pushed to cloud ✅'); renderSettings(); }
   }catch(err){
-    if(!silent) toast('☁️ Push failed: ' + err.message);
+    if(!silent) toast('☁️ Push failed: ' + err.message.slice(0, 160));
   }
 }
 
 async function syncPull(){
   const s = state.settings.sync;
-  if(!s.url || !s.key){ toast('Enter your Supabase URL and key first.'); return; }
+  if(!checkSyncCreds(true)) return;
   try{
     const res = await fetch(s.url.replace(/\/+$/, '') + '/rest/v1/saves?id=eq.' + encodeURIComponent(s.playerId), {
       headers: syncHeaders(),
     });
-    if(!res.ok) throw new Error('HTTP ' + res.status);
+    if(!res.ok) throw new Error(await apiErrorMessage(res));
     const rows = await res.json();
-    if(!rows.length){ toast('No cloud save found yet.'); return; }
+    if(!rows.length){ toast('No cloud save found yet — Push from this device first.'); return; }
     if(!confirm('Replace your current save with the cloud save?')) return;
-    state = migrate(rows[0].data);
+    state = sanitize(migrate(rows[0].data));
     s.lastPull = new Date().toISOString();
     save();
     location.reload();
   }catch(err){
-    toast('☁️ Pull failed: ' + err.message);
+    toast('☁️ Pull failed: ' + err.message.slice(0, 160));
   }
 }
 
@@ -1343,4 +1446,31 @@ function init(){
   }
 }
 
-init();
+
+/* crash guard: the game can never be stuck on a black screen again */
+function crashScreen(msg){
+  try{
+    if(document.getElementById('crashScreen')) return;
+    const n = document.createElement('div');
+    n.className = 'overlay';
+    n.id = 'crashScreen';
+    n.innerHTML = '<div class="sys-window" style="max-width:440px;width:100%">' +
+      '<div class="win-bar"><span class="win-title">System Error</span></div>' +
+      '<div class="win-body">' +
+      '<p style="font-size:14px;line-height:1.6">The System hit a wall. Pick one:</p>' +
+      '<p style="font-size:11px;color:var(--muted);margin:10px 0;word-break:break-all">' + String(msg || 'unknown').replace(/</g, '&lt;').slice(0, 300) + '</p>' +
+      '<div class="btnrow">' +
+      '<button class="btn primary" id="crashReload">↺ Try again</button>' +
+      '<button class="btn danger" id="crashReset">Reset game (fresh start)</button>' +
+      '</div></div></div>';
+    document.body.appendChild(n);
+    document.getElementById('crashReload').addEventListener('click', () => location.reload());
+    document.getElementById('crashReset').addEventListener('click', () => {
+      try{ localStorage.removeItem(KEY); }catch(e){}
+      location.reload();
+    });
+  }catch(e2){}
+}
+
+window.addEventListener('error', e => crashScreen(e.message));
+try{ init(); }catch(e){ crashScreen(e && e.message); }
