@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Life RPG — your life, your rules</title>
+  <meta name="description" content="A Solo Leveling-inspired life RPG. Complete real-life quests, earn EXP, level up.">
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#04060d">
+  <link rel="icon" type="image/png" href="icon-192.png">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Life RPG">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- FIRST RUN: character creation -->
+  <div id="firstRun" class="overlay hidden">
+    <div class="sys-window narrow">
+      <div class="win-bar"><span class="win-title">SYSTEM NOTICE</span></div>
+      <div class="win-body">
+        <p class="notice">The System has detected a new Player. Complete registration to begin your journey.</p>
+        <label class="field"><span>PLAYER NAME</span>
+          <input id="frName" maxlength="24" placeholder="Enter your name" autocomplete="off">
+        </label>
+        <label class="field"><span>AVATAR SIGIL</span></label>
+        <div id="frAvatars" class="avatar-pick"></div>
+        <label class="field"><span>CLASS</span></label>
+        <div id="frClasses" class="class-pick"></div>
+        <button id="frStart" class="btn primary big">BEGIN — I ACCEPT THE SYSTEM</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN APP -->
+  <main id="app" class="hidden">
+    <header id="topbar">
+      <div class="chip" id="tbLevel">Lv 1</div>
+      <div class="chip gold" id="tbGold">◈ 0</div>
+      <div class="chip fire" id="tbStreak">🔥 0</div>
+    </header>
+
+    <section id="view-character" class="view"></section>
+    <section id="view-quests" class="view hidden"></section>
+    <section id="view-log" class="view hidden"></section>
+    <section id="view-shop" class="view hidden"></section>
+    <section id="view-settings" class="view hidden"></section>
+
+    <nav id="tabbar">
+      <button data-tab="character" class="tab active">👁️<span>Player</span></button>
+      <button data-tab="quests" class="tab">⚔️<span>Quests</span></button>
+      <button data-tab="log" class="tab">📜<span>Log</span></button>
+      <button data-tab="shop" class="tab">🛒<span>Shop</span></button>
+      <button data-tab="settings" class="tab">⚙️<span>Rules</span></button>
+    </nav>
+  </main>
+
+  <!-- LEVEL UP / RANK UP cinematic -->
+  <div id="fxOverlay" class="overlay hidden">
+    <div id="fxContent" class="fx-content"></div>
+  </div>
+
+  <!-- QUEST EDITOR modal -->
+  <div id="questModal" class="overlay hidden">
+    <div class="sys-window narrow">
+      <div class="win-bar"><span class="win-title" id="qmTitle">NEW QUEST</span><button class="win-x" id="qmClose">✕</button></div>
+      <div class="win-body">
+        <label class="field"><span>QUEST NAME</span>
+          <input id="qmName" maxlength="40" placeholder="e.g. 50 push-ups" autocomplete="off">
+        </label>
+        <div class="row2">
+          <label class="field"><span>ICON</span>
+            <input id="qmIcon" maxlength="4" placeholder="💪" autocomplete="off">
+          </label>
+          <label class="field"><span>CATEGORY</span>
+            <select id="qmCat">
+              <option>Body</option><option>Mind</option><option>Discipline</option><option>Social</option><option>Other</option>
+            </select>
+          </label>
+        </div>
+        <div class="row3">
+          <label class="field"><span>EXP</span><input id="qmExp" type="number" min="1" value="50"></label>
+          <label class="field"><span>GOLD</span><input id="qmGold" type="number" min="0" value="5"></label>
+          <label class="field"><span>MAX / PERIOD</span><input id="qmLimit" type="number" min="1" max="10" value="1"></label>
+        </div>
+        <label class="field"><span>FREQUENCY</span>
+          <select id="qmFreq">
+            <option value="daily">Daily — resets every day</option>
+            <option value="weekly">Weekly — resets every Monday</option>
+            <option value="monthly">Monthly — resets on the 1st</option>
+          </select>
+        </label>
+        <p class="hint">Your life, your rules — you are the Game Master. Set the rewards yourself.</p>
+        <div class="btnrow">
+          <button id="qmDelete" class="btn danger">Delete</button>
+          <button id="qmSave" class="btn primary">Save Quest</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- REWARD EDITOR modal -->
+  <div id="rewardModal" class="overlay hidden">
+    <div class="sys-window narrow">
+      <div class="win-bar"><span class="win-title" id="rmTitle">NEW REWARD</span><button class="win-x" id="rmClose">✕</button></div>
+      <div class="win-body">
+        <label class="field"><span>REWARD NAME</span>
+          <input id="rmName" maxlength="40" placeholder="e.g. Movie night" autocomplete="off">
+        </label>
+        <div class="row2">
+          <label class="field"><span>ICON</span>
+            <input id="rmIcon" maxlength="4" placeholder="🍿" autocomplete="off">
+          </label>
+          <label class="field"><span>COST (GOLD)</span><input id="rmCost" type="number" min="1" value="50"></label>
+        </div>
+        <p class="hint">Rewards should be REAL things you allow yourself. That's the whole deal with the System.</p>
+        <div class="btnrow">
+          <button id="rmDelete" class="btn danger">Delete</button>
+          <button id="rmSave" class="btn primary">Save Reward</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BOSS TASK modal -->
+  <div id="bossModal" class="overlay hidden">
+    <div class="sys-window narrow">
+      <div class="win-bar"><span class="win-title">WEEKLY BOSS</span><button class="win-x" id="bmClose">✕</button></div>
+      <div class="win-body">
+        <p class="hint">Set the task that counts as this week's boss. A new boss arrives every Monday.</p>
+        <label class="field"><span>BOSS TASK (leave empty for auto)</span>
+          <input id="bmName" maxlength="60" placeholder="e.g. Finish the project pitch" autocomplete="off">
+        </label>
+        <button id="bmSave" class="btn primary big">Set Boss Task</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="fxLayer"></div>
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
