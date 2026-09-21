@@ -1064,11 +1064,13 @@ function importData(file){
     try{
       const d = JSON.parse(fr.result);
       if(!d || !Array.isArray(d.quests) || typeof d.exp !== 'number') throw new Error('bad file');
-      state = migrate(d);
+      state = sanitize(migrate(d));
       save();
-      location.reload();
-    }catch(e){ toast('Import failed — not a valid backup file.'); }
+      toast('✅ Import OK — loading your save...');
+      setTimeout(() => location.reload(), 500);
+    }catch(e){ toast('❌ Import failed — that file is not a valid Life RPG backup (pick the life-rpg-backup-*.json file).'); }
   };
+  fr.onerror = () => toast('❌ Could not read that file. Try exporting it again.');
   fr.readAsText(file);
 }
 
