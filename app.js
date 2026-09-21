@@ -1097,8 +1097,8 @@ function checkSyncCreds(showErrors){
     if(showErrors) toast('❌ That is not a Supabase URL. It should look like https://abcdefgh.supabase.co — copy "Project URL" from Supabase → Project Settings → API.');
     return false;
   }
-  if(!/^eyJ/.test(s.key)){
-    if(showErrors) toast('❌ That is not a Supabase key (keys start with "eyJ"). Use the "anon public" key from Supabase → Project Settings → API.');
+  if(!/^(eyJ|sb_publishable_)/.test(s.key)){
+    if(showErrors) toast('❌ That does not look like a Supabase publishable/anon key (starts with "sb_publishable_" or "eyJ"). Use the PUBLISHABLE key — never the secret key.');
     return false;
   }
   return true;
@@ -1408,8 +1408,8 @@ function startGame(){
 /* ---------------- init ---------------- */
 
 function init(){
-  const loaded = load();
-  if(!loaded){
+  state = load();
+  if(!state){
     show(el('firstRun'));
     setupFirstRun();
   } else {
