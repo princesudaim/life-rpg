@@ -21,6 +21,34 @@ const CLASSES = {
                pro:'+25% EXP from Social quests', con:'-15% EXP from Discipline quests' },
 };
 const CAT_STAT = { Body:'STR', Mind:'INT', Discipline:'VIT', Social:'CHA' };
+const START_SIGILS = ['\u2694\uFE0F','\u{1F5E1}\uFE0F','\u{1F319}','\u{1F441}\uFE0F'];
+const TITLES = ['The Unbroken','Night Blade','Iron Will','Silent Storm','First of the Dawn','Abyss Walker','King of the Night','Eclipse','Stormcaller','The Patient Hunter'];
+const RANKS = [ {r:'E',exp:0}, {r:'D',exp:500}, {r:'C',exp:1500}, {r:'B',exp:4000}, {r:'A',exp:10000}, {r:'S',exp:25000}, {r:'SS',exp:60000} ];
+const QUOTES = [
+  'Only you level up.',
+  'The System does not negotiate. But it keeps the score.',
+  'Every quest you complete is a wall the darkness cannot cross.',
+  'Arise.',
+  'Body, mind, discipline, people \u2014 that is the whole build.',
+  'A streak is a promise you make to your future self.',
+  'Gold is just a memory of effort.',
+  'The dungeon is life. Enter anyway.',
+  'You do not find your path. You check in on it, daily.',
+  'Monarchs are made on ordinary days.',
+];
+function dailyQuote(){
+  const d = new Date();
+  const doy = Math.floor((d - new Date(d.getFullYear(), 0, 0)) / 86400000);
+  return QUOTES[doy % QUOTES.length];
+}
+function timeLeftToday(){
+  const now = new Date();
+  const end = new Date(now); end.setHours(24, 0, 0, 0);
+  const ms = end - now;
+  const h = Math.floor(ms / 3600000);
+  const m = Math.floor((ms % 3600000) / 60000);
+  return h + 'h ' + String(m).padStart(2, '0') + 'm';
+}
 const statForCategory = c => CAT_STAT[c] || null;
 
 const DEFAULT_QUESTS = [
@@ -97,6 +125,7 @@ const DEFAULT_SETTINGS = {
   perfectDayGold:25, perfectWeekGold:75, perfectMonthGold:150,
   bossExp:500, bossGold:100, bossPhases:3, bossKillBonus:50,
   randomQuests:true,
+  theme:'cyan', questLayout:'path',
   sync:{ url:'', key:'', auto:false, lastPush:null, lastPull:null, playerId:'' },
 };
 
@@ -132,6 +161,11 @@ function defaultState(){
     perfect:{},
     inventory:{ streakSaver:0, hpPotion:0 },
     lastBlessingDay:null,
+    missions:{ day:null, list:[] },
+    collection:{ sigils: START_SIGILS.slice(), titles:[] },
+    activeTitle:null,
+    dayQuests:0, bestQuestsDay:0,
+    freeSupplyDay:null,
     quests: DEFAULT_QUESTS.map(q => ({ ...q, timesDone:0, resetKey:periodFor(q.freq) })),
     rewards: DEFAULT_REWARDS,
     bought:[], log:[], badges:[],
@@ -162,6 +196,25 @@ function migrate(s){
   s.inventory.hpPotion = Math.max(0, Math.floor(Number(s.inventory.hpPotion) || 0));
   if(!isFinite(Number(s.bestStreak))) s.bestStreak = 0;
   s.lastBlessingDay = (s.lastBlessingDay === null || typeof s.lastBlessingDay === 'string') ? s.lastBlessingDay : null;
+  if(!s.missions || typeof s.missions !== 'object') s.missions = { day:null, list:[] };
+  if(!Array.isArray(s.missions.list)) s.missions.list = [];
+  s.missions.list = s.missions.list.map(m => ({
+    id: String(m.id || 'm'), icon: String(m.icon || '⭐'), desc: String(m.desc || 'Mission'),
+    target: Math.max(1, Number(m.target) || 1), key: String(m.key || ''),
+    progress: Math.max(0, Number(m.progress) || 0), reward: Math.max(0, Number(m.reward) || 0),
+    claimed: !!m.claimed,
+  }));
+  if(!s.collection || typeof s.collection !== 'object') s.collection = { sigils: START_SIGILS.slice(), titles:[] };
+  s.collection.sigils = Array.isArray(s.collection.sigils) ? s.collection.sigils.filter(x => typeof x === 'string' && AVATARS.includes(x)) : START_SIGILS.slice();
+  s.collection.titles = Array.isArray(s.collection.titles) ? s.collection.titles.filter(x => typeof x === 'string' && TITLES.includes(x)) : [];
+  if(s.activeTitle !== null && (typeof s.activeTitle !== 'string' || !s.collection.titles.includes(s.activeTitle))) s.activeTitle = null;
+  if(!isFinite(Number(s.dayQuests))) s.dayQuests = 0;
+  if(!isFinite(Number(s.bestQuestsDay))) s.bestQuestsDay = 0;
+  s.freeSupplyDay = (s.freeSupplyDay === null || typeof s.freeSupplyDay === 'string') ? s.freeSupplyDay : null;
+  if(s.settings){
+    if(!['cyan','gold','red'].includes(s.settings.theme)) s.settings.theme = 'cyan';
+    if(!['path','list'].includes(s.settings.questLayout)) s.settings.questLayout = 'path';
+  }
   if(s.bossKills === undefined) s.bossKills = 0;
   if(s.bossCustomName === undefined) s.bossCustomName = '';
   if(s.lastReportMonth === undefined) s.lastReportMonth = null;
@@ -194,6 +247,12 @@ function sanitize(d){
   d.inventory.hpPotion = Math.max(0, Math.floor(Number(d.inventory.hpPotion) || 0));
   d.lastBlessingDay = (d.lastBlessingDay === null || typeof d.lastBlessingDay === 'string') ? d.lastBlessingDay : null;
   d.lastQuestDay = typeof d.lastQuestDay === 'string' ? d.lastQuestDay : null;
+  d.missions = { day: typeof d.missions?.day === 'string' ? d.missions.day : null, list: Array.isArray(d.missions?.list) ? d.missions.list : [] };
+  d.collection = { sigils: Array.isArray(d.collection?.sigils) ? d.collection.sigils.filter(x => typeof x === 'string') : START_SIGILS.slice(), titles: Array.isArray(d.collection?.titles) ? d.collection.titles.filter(x => typeof x === 'string') : [] };
+  d.activeTitle = typeof d.activeTitle === 'string' ? d.activeTitle : null;
+  d.dayQuests = Math.max(0, Number(d.dayQuests) || 0);
+  d.bestQuestsDay = Math.max(0, Number(d.bestQuestsDay) || 0);
+  d.freeSupplyDay = (d.freeSupplyDay === null || typeof d.freeSupplyDay === 'string') ? d.freeSupplyDay : null;
   if(typeof d.day !== 'string') d.day = todayStr();
   d.lastReportMonth = (d.lastReportMonth === null || typeof d.lastReportMonth === 'string') ? d.lastReportMonth : null;
   d.character = (d.character && typeof d.character === 'object')
@@ -324,7 +383,77 @@ function titleForLevel(l){
   return 'Novice';
 }
 function maxHp(){ return state.settings.maxHp + (levelFromExp(state.exp).level - 1) * 5; }
+
+function rankLadder(){
+  const info = rankInfo();
+  const cells = RANKS.map(r => `<span class="rl-cell ${r.r === info.cur.r ? 'on' : (info.te >= r.exp ? 'passed' : '')}">${r.r}</span>`).join('');
+  return `<div class="rank-ladder">
+    <div class="rl-head"><span>SYSTEM RANK</span><span class="rl-next">${info.next ? fmt(info.next.exp - info.te) + ' EXP to ' + info.next.r : 'MAX RANK'}</span></div>
+    <div class="rl-row">${cells}</div>
+    <div class="bar" style="margin-top:8px"><i style="width:${info.pct}%"></i></div>
+    <div class="rl-best">🔥 best streak ${state.bestStreak || 0} &nbsp;·&nbsp; ⭐ best day ${state.bestQuestsDay || 0} quests</div>
+  </div>`;
+}
 function statPoints(exp){ return Math.max(1, Math.round(exp / 50)); }
+
+/* ---------------- daily missions ---------------- */
+
+function genMissions(){
+  const t = todayStr();
+  if(!state || state.missions.day === t) return;
+  state.missions = { day: t, bonusClaimed:false, list: [
+    { id:'m-quests', icon:'\u2694\uFE0F', desc:'Complete 2 quests today', target:2, key:'quests', progress:0, reward:15, claimed:false },
+    { id:'m-exp', icon:'\u2728', desc:'Earn 60 EXP today', target:60, key:'exp', progress:0, reward:20, claimed:false },
+    { id:'m-perfect', icon:'\u{1F3AF}', desc:'Perfect Day \u2014 finish ALL daily quests', target:1, key:'perfect', progress:0, reward:30, claimed:false },
+  ] };
+  save();
+}
+
+function missionBump(key, amt){
+  if(!state || state.missions.day !== todayStr()) return;
+  for(const m of state.missions.list){
+    if(m.key === key && m.progress < m.target){
+      m.progress = Math.min(m.target, m.progress + amt);
+      if(m.progress >= m.target && !m.claimed){
+        m.claimed = true;
+        state.gold += m.reward; state.totalGold += m.reward;
+        toast('\u2705 Mission complete: ' + m.desc + '  +' + m.reward + ' \u25C8');
+        sfxBadge();
+      }
+    }
+  }
+  if(!state.missions.bonusClaimed && state.missions.list.every(m => m.progress >= m.target)){
+    state.missions.bonusClaimed = true;
+    state.gold += 15; state.totalGold += 15;
+    setTimeout(() => toast('\u{1F3C6} ALL MISSIONS \u2014 Mission Master bonus +15 \u25C8. The System is proud.'), 1800);
+  }
+  save();
+}
+
+/* ---------------- ranks & totals ---------------- */
+
+function totalExp(){
+  const cur = levelFromExp(state.exp);
+  let t = cur.into;
+  for(let l = 1; l < cur.level; l++) t += expNeededFor(l);
+  return Math.round(t);
+}
+
+function rankInfo(){
+  const te = totalExp();
+  let idx = 0;
+  for(let i = 0; i < RANKS.length; i++) if(te >= RANKS[i].exp) idx = i;
+  const cur = RANKS[idx];
+  const next = RANKS[idx + 1] || null;
+  const pct = next ? Math.min(100, Math.round((te - cur.exp) / (next.exp - cur.exp) * 100)) : 100;
+  return { te, cur, next, pct, idx };
+}
+
+/* ---------------- themes ---------------- */
+
+function applyTheme(){
+  document.body.setAttribute('data-theme', (state && state.settings && state.settings.theme) || 'cyan');
+}
 
 /* ---------------- day/week/month rollover ---------------- */
 
@@ -361,6 +490,8 @@ function rollover(){
       }
     }
     state.day = t;
+    state.dayQuests = 0;
+    genMissions();
     changed = true;
   }
 
@@ -445,6 +576,11 @@ function checkIn(qid, ev){
   }
   applyReward({ exp, gold:q.gold, name:q.name, icon:q.icon, statKey:cat, ev });
   checkPerfects(q.freq);
+  state.dayQuests++;
+  state.bestQuestsDay = Math.max(state.bestQuestsDay || 0, state.dayQuests);
+  missionBump('quests', 1);
+  missionBump('exp', exp);
+  save();
   // variable reward: the System occasionally smiles (15% luck)
   if(Math.random() < 0.15){
     const bonus = 5 + Math.floor(Math.random() * 3) * Math.max(1, q.gold);
@@ -525,6 +661,7 @@ function checkPerfects(freq){
     toast('🌟 PERFECT ' + (freq === 'daily' ? 'DAY' : freq === 'weekly' ? 'WEEK' : 'MONTH') +
       ' — all ' + freq + ' quests done! +' + bonus + ' ◈');
     sfxLevelUp();
+    if(freq === 'daily') missionBump('perfect', 1);
   }
 }
 
@@ -588,9 +725,11 @@ function renderAll(){
   renderTopbar();
   renderCharacter();
   renderQuests();
+  renderMissions();
   renderLog();
   renderShop();
   renderSettings();
+  renderRail();
 }
 
 function renderTopbar(){
@@ -598,6 +737,49 @@ function renderTopbar(){
   el('tbLevel').textContent = `Lv ${level} · ${rankForLevel(level)}`;
   el('tbGold').textContent = `◈ ${fmt(state.gold)}`;
   el('tbStreak').textContent = `🔥 ${state.streak}`;
+  const sbL = el('sbLevel'), sbG = el('sbGold'), sbS = el('sbStreak');
+  if(sbL) sbL.textContent = `Lv ${level} · ${rankForLevel(level)}`;
+  if(sbG) sbG.textContent = `◈ ${fmt(state.gold)}`;
+  if(sbS) sbS.textContent = `🔥 ${state.streak}`;
+}
+
+function renderRail(){
+  const r = el('rail');
+  if(!r) return;
+  const { level, into, needed } = levelFromExp(state.exp);
+  const rank = rankForLevel(level);
+  const mh = maxHp();
+  const ms = state.missions || { list:[] };
+  const mrows = (ms.list || []).map(m => {
+    const pct = Math.min(100, Math.round(m.progress / m.target * 100));
+    return `<div class="rail-m ${m.progress >= m.target ? 'done' : ''}" title="${esc(m.desc)} — ${m.progress}/${m.target}"><span>${esc(m.icon)}</span><div class="bar" style="flex:1"><i style="width:${pct}%"></i></div></div>`;
+  }).join('');
+  const b = state.boss, bs = state.settings;
+  const bdef = b.done >= bs.bossPhases;
+  const bpct = Math.round(b.done / bs.bossPhases * 100);
+  r.innerHTML = `
+    <div class="sys-window rail-card">
+      <div class="win-bar"><span class="win-title">${esc(state.character.name)}</span><span class="rank-chip rank-${rank}">${rank}</span></div>
+      <div class="win-body">
+        <div class="bar-block"><div class="bar-label"><span>Level ${level}</span><span>${fmt(into)} / ${fmt(needed)} EXP</span></div>
+          <div class="bar"><i style="width:${Math.min(100, Math.round(into / needed * 100))}%"></i></div></div>
+        <div class="bar-block"><div class="bar-label"><span>HP</span><span>${Math.round(state.hp)} / ${mh}</span></div>
+          <div class="bar hp"><i style="width:${Math.max(0, Math.min(100, Math.round(state.hp / mh * 100)))}%"></i></div></div>
+        <div class="rail-stats"><span>🔥 ${state.streak}</span><span>◈ ${fmt(state.gold)}</span><span>⭐ ${fmt(state.totalQuests)}</span></div>
+      </div>
+    </div>
+    <div class="sys-window rail-card">
+      <div class="win-bar"><span class="win-title">Missions</span><span class="time-chip">⏳ ${timeLeftToday()}</span></div>
+      <div class="win-body">${mrows || '<div class="hint">Missions arriving…</div>'}</div>
+    </div>
+    <div class="sys-window rail-card">
+      <div class="win-bar"><span class="win-title">Boss</span>${bdef ? '<span class="win-sub">defeated</span>' : ''}</div>
+      <div class="win-body">
+        <div class="rail-boss-name">${esc(state.bossCustomName || b.boss)}</div>
+        <div class="bar" style="margin-top:8px"><i style="width:${bpct}%"></i></div>
+        <div class="hint" style="margin-top:6px">${bdef ? 'New boss next Monday.' : b.done + '/' + bs.bossPhases + ' phases · Quests tab'}</div>
+      </div>
+    </div>`;
 }
 
 function renderCharacter(){
@@ -621,7 +803,7 @@ function renderCharacter(){
           <div class="p-avatar">${av}</div>
           <div style="flex:1;min-width:0">
             <div class="p-name">${esc(state.character.name)}</div>
-            <div class="p-title">${esc(titleForLevel(level))} · ${cls.icon} ${cls.name}</div>
+            <div class="p-title">${esc(titleForLevel(level))} · ${cls.icon} ${cls.name}${state.activeTitle ? ` <span class="p-atitle">◆ ${esc(state.activeTitle)}</span>` : ''}</div>
             <div class="p-classpro"><span class="pro">▲ ${esc(cls.pro)}</span> &nbsp;·&nbsp; <span class="con">▼ ${esc(cls.con)}</span></div>
           </div>
           <div class="p-lvl"><b>${level}</b><span>LEVEL</span></div>
@@ -645,6 +827,7 @@ function renderCharacter(){
           <span class="st-cha">CHA ${state.stats.CHA}</span>
           <span class="st-gold">◈ ${fmt(state.gold)}</span>
         </div>
+        ${rankLadder()}
         <div class="p-foot-row">
           <div class="p-foot">⭐ ${fmt(state.totalQuests)} quests · 🏅 ${state.badges.length} · 🐉 ${state.bossKills || 0} · since ${new Date(state.created).toLocaleDateString()}</div>
           <div class="p-actions">
@@ -734,17 +917,49 @@ function systemCard(){
   </div>`;
 }
 
+function questPath(){
+  const cats = [['Body', '\u{1F4AA}'], ['Mind', '\u{1F9E0}'], ['Discipline', '\u{1F3F3}'], ['Social', '\u{1F91D}\uFE0F'], ['Other', '\u2B50']];
+  const dailies = state.quests.filter(q => q.freq === 'daily');
+  const sections = cats.map(([c, ic]) => {
+    const group = dailies.filter(q => q.category === c);
+    if(!group.length) return '';
+    const done = group.filter(q => q.timesDone >= q.dailyLimit).length;
+    const nodes = group.map(q => {
+      const isDone = q.timesDone >= q.dailyLimit;
+      return `<div class="path-node ${isDone ? 'done' : ''}">
+        <div class="pn-track"><span class="pn-dot">${isDone ? '\u2713' : esc(q.icon)}</span></div>
+        <div class="pn-card" data-q="${q.id}">
+          <div class="pn-name">${esc(q.name)}${q.dailyLimit > 1 ? ` <small>(${q.timesDone}/${q.dailyLimit})</small>` : ''}</div>
+          <div class="pn-sub">+${q.exp} EXP \u00B7 +${q.gold} \u25C8</div>
+          <button class="check-btn" data-q="${q.id}" ${isDone ? 'disabled' : ''}>${isDone ? 'Done' : 'Check In'}</button>
+        </div>
+      </div>`;
+    }).join('');
+    return `<div class="path-section">
+      <div class="path-head"><span class="path-cat">${ic} ${c}</span><span class="g-count">${done}/${group.length}</span></div>
+      <div class="path">${nodes}</div>
+    </div>`;
+  }).join('');
+  const others = state.quests.filter(q => q.freq !== 'daily');
+  const chapters = others.length ? `<div class="sys-window" style="margin-top:14px">
+      <div class="win-bar"><span class="win-title">Chapters</span><span class="win-sub">weekly &amp; monthly \u00B7 ${others.length} quests</span></div>
+      <div class="win-body">${others.map(questCard).join('')}</div>
+    </div>` : '';
+  return sections + chapters;
+}
+
 function renderQuests(){
+  const usePath = state.settings.questLayout === 'path';
   el('view-quests').innerHTML = `
     ${bossCard()}
     ${systemCard()}
     <div class="sys-window">
-      <div class="win-bar"><span class="win-title">Quest Board</span>
+      <div class="win-bar"><span class="win-title">${usePath ? 'Quest Path' : 'Quest Board'}</span>
         <button class="mini-btn" id="addQuestBtn">+ New</button></div>
       <div class="win-body">
-        ${questGroup('daily', 'Daily')}
-        ${questGroup('weekly', 'Weekly')}
-        ${questGroup('monthly', 'Monthly')}
+        ${usePath
+          ? (questPath() || '<div class="empty">No daily quests yet \u2014 tap "+ New".</div>')
+          : (questGroup('daily', 'Daily') + questGroup('weekly', 'Weekly') + questGroup('monthly', 'Monthly'))}
         <p class="board-hint">tap a quest to edit it</p>
       </div>
     </div>`;
@@ -753,6 +968,11 @@ function renderQuests(){
     b.addEventListener('click', e => checkIn(b.dataset.q, e)));
   document.querySelectorAll('.q-meta[data-q]').forEach(m =>
     m.addEventListener('click', () => openQuestEditor(m.dataset.q)));
+  document.querySelectorAll('.pn-card[data-q]').forEach(m =>
+    m.addEventListener('click', e => {
+      if(e.target.closest('.check-btn')) return;
+      openQuestEditor(m.dataset.q);
+    }));
   el('addQuestBtn').addEventListener('click', () => openQuestEditor(null));
   el('bossHitBtn').addEventListener('click', e => bossHit(e));
   el('bossEditBtn').addEventListener('click', () => openBossEditor());
@@ -760,6 +980,36 @@ function renderQuests(){
   if(sh) sh.addEventListener('click', e => systemHit(e));
   const si = el('sysIgnoreBtn');
   if(si) si.addEventListener('click', systemIgnore);
+}
+
+function renderMissions(){
+  const ms = state.missions || { list:[] };
+  const rows = (ms.list || []).map(m => {
+    const pct = Math.min(100, Math.round(m.progress / m.target * 100));
+    const done = m.progress >= m.target;
+    return `<div class="mission ${done ? 'done' : ''}">
+      <span class="mi-icon">${esc(m.icon)}</span>
+      <div class="mi-body">
+        <div class="mi-name">${esc(m.desc)}</div>
+        <div class="bar" style="margin-top:6px"><i style="width:${pct}%"></i></div>
+        <div class="mi-meta">${done ? '✓ complete' : m.progress + ' / ' + m.target} &nbsp;·&nbsp; +${m.reward} ◈</div>
+      </div>
+      ${done ? '<span class="mi-check">✓</span>' : ''}
+    </div>`;
+  }).join('');
+  el('view-missions').innerHTML = `
+    <div class="sys-window">
+      <div class="win-bar"><span class="win-title">Daily Missions</span>
+        <span class="time-chip">⏳ ${timeLeftToday()} left</span></div>
+      <div class="win-body">
+        <div class="gold-note">Complete all three for a <b>+15 ◈</b> Mission Master bonus. Missions reset at midnight.</div>
+        ${rows || '<div class="empty">Missions arriving…</div>'}
+        <div class="quote-box">
+          <div class="quote">“${esc(dailyQuote())}”</div>
+          <div class="quote-src">— The System, ${new Date().toLocaleDateString()}</div>
+        </div>
+      </div>
+    </div>`;
 }
 
 function renderLog(){
@@ -832,6 +1082,42 @@ function renderShop(){
       </div>
     </div>
     <div class="sys-window" style="margin-top:14px">
+      <div class="win-bar"><span class="win-title">Chests</span><span class="win-sub">random drops</span></div>
+      <div class="win-body" style="padding-top:8px">
+        <div class="powerup">
+          <div class="r-icon">\u{1F381}</div>
+          <div class="q-meta">
+            <div class="q-name">Free Supply</div>
+            <div class="q-sub">10\u201330 \u25C8, once per day. The System's daily gift.</div>
+          </div>
+          <button class="buy-btn" id="freeSupplyBtn" ${state.freeSupplyDay === todayStr() ? 'disabled' : ''}>${state.freeSupplyDay === todayStr() ? 'Tomorrow' : 'Claim'}</button>
+        </div>
+        <div class="powerup">
+          <div class="r-icon">\u{1F4E6}</div>
+          <div class="q-meta">
+            <div class="q-name">Mystery Chest</div>
+            <div class="q-sub">Random drop: gold \u00B7 EXP \u00B7 potion \u00B7 saver \u00B7 new sigil \u00B7 new title. Full collection refunds 50 \u25C8.</div>
+          </div>
+          <button class="buy-btn" id="chestBtn" ${state.gold < 60 ? 'disabled' : ''}>${state.gold >= 60 ? 'Open \u00B7 60' : '60 \u25C8'}</button>
+        </div>
+      </div>
+    </div>
+    <div class="sys-window" style="margin-top:14px">
+      <div class="win-bar"><span class="win-title">Collection</span><span class="win-sub">${state.collection.sigils.length}/12 sigils \u00B7 ${state.collection.titles.length} titles</span></div>
+      <div class="win-body" style="padding-top:8px">
+        <div class="col-sigils">${AVATARS.map(a => {
+          const owned = state.collection.sigils.includes(a);
+          const active = state.character.avatar === a;
+          return `<span class="col-sigil ${owned ? '' : 'locked'} ${active ? 'active' : ''}" title="${owned ? a : 'Locked \u2014 open a Mystery Chest'}">${owned ? a : '\u{1F512}'}</span>`;
+        }).join('')}</div>
+        <div class="col-titles">
+          ${state.collection.titles.length ? state.collection.titles.map(t =>
+            `<button class="col-title ${state.activeTitle === t ? 'worn' : ''}" data-t="${esc(t)}">\u25C6 ${esc(t)}${state.activeTitle === t ? ' \u00B7 worn' : ''}</button>`).join('')
+          : '<div class="hint">No bonus titles yet \u2014 Mystery Chests can grant them. Your level title is automatic.</div>'}
+        </div>
+      </div>
+    </div>
+    <div class="sys-window" style="margin-top:14px">
       <div class="win-bar"><span class="win-title">Redeemed</span></div>
       <div class="win-body" style="padding-top:6px">${bought}</div>
     </div>`;
@@ -853,6 +1139,14 @@ function renderShop(){
     save(); renderAll(); sfxCheckIn();
     toast('🧪 +50 HP. The System notices.');
   });
+  const fsb = el('freeSupplyBtn');
+  if(fsb) fsb.addEventListener('click', () => openChest(true));
+  const cb = el('chestBtn');
+  if(cb) cb.addEventListener('click', () => openChest(false));
+  document.querySelectorAll('.col-title').forEach(b => b.addEventListener('click', () => {
+    state.activeTitle = state.activeTitle === b.dataset.t ? null : b.dataset.t;
+    save(); renderAll(); toast(state.activeTitle ? 'Title equipped: ' + state.activeTitle : 'Title removed.');
+  }));
 }
 
 /* ---------------- settings (Game Master) ---------------- */
@@ -872,6 +1166,21 @@ function renderSettings(){
     <div class="win-body">
 
       <div class="btnrow" style="margin-top:0"><button class="btn primary" id="openRulesBtn">📖 Read the System's Laws (Rules Book)</button></div>
+
+      <div class="set-sec">
+        <div class="set-title">Appearance</div>
+        <div class="set-row"><span>THEME</span>
+          <div class="theme-row">
+            ${['cyan','gold','red'].map(t => `<button class="theme-dot ${t} ${s.theme === t ? 'sel' : ''}" data-theme="${t}" title="${t === 'cyan' ? 'System Cyan' : t === 'gold' ? 'Monarch Gold' : 'Shadow Red'}"></button>`).join('')}
+          </div>
+        </div>
+        <div class="set-row"><span>QUEST VIEW</span>
+          <div class="seg">
+            <button class="seg-b ${s.questLayout === 'path' ? 'on' : ''}" data-layout="path">Path</button>
+            <button class="seg-b ${s.questLayout === 'list' ? 'on' : ''}" data-layout="list">List</button>
+          </div>
+        </div>
+      </div>
 
       <div class="set-sec">
         <div class="set-title">Character</div>
@@ -1041,6 +1350,14 @@ create policy "open personal sync"
   });
   const orb = el('openRulesBtn');
   if(orb) orb.addEventListener('click', openRulesBook);
+  document.querySelectorAll('.theme-dot').forEach(d => d.addEventListener('click', () => {
+    state.settings.theme = d.dataset.theme;
+    save(); applyTheme(); renderAll(); toast('Theme set.');
+  }));
+  document.querySelectorAll('.seg-b').forEach(b => b.addEventListener('click', () => {
+    state.settings.questLayout = b.dataset.layout;
+    save(); renderAll();
+  }));
 
   el('syncUrl').addEventListener('change', e => { state.settings.sync.url = e.target.value.trim(); save(); });
   el('syncKey').addEventListener('change', e => { state.settings.sync.key = e.target.value.trim(); save(); });
@@ -1079,7 +1396,10 @@ const RULES_TEXT = `
 <div class="rules-row"><span class="rules-num">9</span><div><b>Perfect Days.</b> Finish every daily quest in a day and earn the "Flawless" badge. Complete a whole week and earn "Undeniable". Perfect days are counted per week.</div></div>
 <div class="rules-row"><span class="rules-num">10</span><div><b>Daily Blessing.</b> Open the game each day and the System greets you with gold: 10 ◈ plus 2 ◈ per streak day. It is a small thank-you for showing up.</div></div>
 <div class="rules-row"><span class="rules-num">11</span><div><b>Luck.</b> 15% of check-ins bring a lucky gold bonus. The System is fickle — that is why you check in.</div></div>
-<div class="rules-row"><span class="rules-num">12</span><div><b>Your life, your rules.</b> Every number on this page — EXP, gold, HP penalties, boss HP, blessing size — can be changed in Settings → Game Master. The System obeys you, Player. Even this book does not stop you rewriting the world.</div></div>
+<div class="rules-row"><span class="rules-num">12</span><div><b>System Ranks.</b> Your lifetime EXP moves you up the rank ladder: E → D → C → B → A → S → SS (500 / 1,500 / 4,000 / 10,000 / 25,000 / 60,000 EXP). Your personal records — longest streak and best quest day — are shown under the ladder.</div></div>
+<div class="rules-row"><span class="rules-num">13</span><div><b>Daily Missions.</b> Each day the System assigns three missions: 2 quests, 60 EXP, and a Perfect Day. Each pays gold, and finishing all three pays a +15 ◈ Mission Master bonus. They reset at midnight — the countdown is on the Missions tab.</div></div>
+<div class="rules-row"><span class="rules-num">14</span><div><b>Chests &amp; Collection.</b> The Shop has a Free Supply (10–30 ◈, once a day) and a Mystery Chest (60 ◈) with random drops: gold, EXP, HP Potion, Streak Saver, a new sigil, or a new title. Everything you unlock lives in your Collection; locked sigils stay locked in the avatar picker. If you already own everything in a drop category, the chest refunds 50 ◈ instead.</div></div>
+<div class="rules-row"><span class="rules-num">15</span><div><b>Your life, your rules.</b> Every number on this page — EXP, gold, HP penalties, boss HP, blessing size, theme, quest layout — can be changed in Settings → Game Master. The System obeys you, Player. Even this book does not stop you rewriting the world.</div></div>
 `;
 
 function openRulesBook(){
@@ -1221,6 +1541,66 @@ function buyPowerup(key, cost){
   toast(key === 'streakSaver'
     ? '🧊 Streak Saver acquired — it will guard your streak automatically.'
     : '🧪 HP Potion acquired. Find it under Power-ups.');
+}
+
+/* ---------------- chests & collection ---------------- */
+
+function rollChest(){
+  const pool = [
+    { type:'gold', w:38 }, { type:'exp', w:10 }, { type:'potion', w:16 },
+    { type:'saver', w:8 }, { type:'sigil', w:22 }, { type:'title', w:12 },
+  ];
+  let tot = 0; for(const p of pool) tot += p.w;
+  let r = Math.random() * tot, pick = pool[0];
+  for(const p of pool){ r -= p.w; if(r < 0){ pick = p; break; } }
+  const res = { type: pick.type };
+  const lockedS = AVATARS.filter(a => !state.collection.sigils.includes(a));
+  const lockedT = TITLES.filter(t => !state.collection.titles.includes(t));
+  if(pick.type === 'gold'){ res.icon = '◈'; res.amount = 20 + Math.floor(Math.random() * 41); res.desc = res.amount + ' ◈ gold'; }
+  else if(pick.type === 'exp'){ res.icon = '✨'; res.amount = 50 + Math.floor(Math.random() * 101); res.desc = '+' + res.amount + ' EXP'; }
+  else if(pick.type === 'potion'){ res.icon = '🧪'; state.inventory.hpPotion++; res.desc = 'HP Potion — +50 HP'; }
+  else if(pick.type === 'saver'){ res.icon = '🧊'; state.inventory.streakSaver++; res.desc = 'Streak Saver — auto-protects one missed day'; }
+  else if(pick.type === 'sigil'){
+    if(lockedS.length){ const a = lockedS[Math.floor(Math.random() * lockedS.length)]; state.collection.sigils.push(a); res.icon = a; res.desc = 'New sigil unlocked — find it in your Collection'; }
+    else { res.icon = '◈'; res.amount = 50; res.desc = 'All sigils already owned — 50 ◈ back'; }
+  }
+  else {
+    if(lockedT.length){ const t = lockedT[Math.floor(Math.random() * lockedT.length)]; state.collection.titles.push(t); res.icon = '🏷️'; res.desc = 'New title: ' + t; }
+    else { res.icon = '◈'; res.amount = 50; res.desc = 'All titles already owned — 50 ◈ back'; }
+  }
+  if(res.amount) { state.gold += res.amount; state.totalGold += res.amount; }
+  return res;
+}
+
+function openChest(free){
+  if(free){
+    if(state.freeSupplyDay === todayStr()){ toast('Free Supply already claimed today. Come back at midnight.'); return; }
+    const amt = 10 + Math.floor(Math.random() * 21);
+    state.freeSupplyDay = todayStr();
+    state.gold += amt; state.totalGold += amt;
+    save(); renderAll(); sfxBadge();
+    showChestResult({ icon:'🎁', title:'Free Supply', desc: amt + ' ◈ gold from the System.', sub:'One free supply every day.' });
+    return;
+  }
+  if(state.gold < 60){ toast('Not enough gold for a Mystery Chest (60 ◈).'); return; }
+  state.gold -= 60;
+  const res = rollChest();
+  if(res.type === 'exp'){
+    const before = levelFromExp(state.exp);
+    state.exp += res.amount;
+    const after = levelFromExp(state.exp);
+    if(after.level > before.level) levelUpFX(before.level, after.level, rankForLevel(before.level), rankForLevel(after.level));
+  }
+  save(); renderAll(); sfxLevelUp();
+  showChestResult({ icon: res.icon, title:'Mystery Chest', desc: res.desc, sub:'Drops: gold · EXP · potions · savers · sigils · titles' });
+}
+
+function showChestResult(r){
+  el('chestIcon').textContent = r.icon;
+  el('chestTitle').textContent = r.title;
+  el('chestDesc').textContent = r.desc;
+  el('chestSub').textContent = r.sub || '';
+  show(el('chestModal'));
 }
 
 /* ---------------- backup ---------------- */
@@ -1571,7 +1951,8 @@ function sfxBadge(){ tone(1200, .15, { gain:.08, type:'triangle' }); }
 
 function switchTab(tab){
   el('tabbar').querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
-  ['character','quests','log','shop','settings'].forEach(v =>
+  document.querySelectorAll('#sidebar .sb-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+  ['character','quests','missions','log','shop','settings'].forEach(v =>
     el('view-' + v).classList.toggle('hidden', v !== tab));
   renderAll();
 }
@@ -1585,9 +1966,13 @@ function renderFrAvatars(){
 
 function setupFirstRun(){
   const box = el('frAvatars');
-  box.innerHTML = AVATARS.map(a =>
-    `<button type="button" data-a="${a}" class="${a === pickedAvatar ? 'sel' : ''}">${a}</button>`).join('');
+  const unlocked = a => state ? state.collection.sigils.includes(a) : START_SIGILS.includes(a);
+  box.innerHTML = AVATARS.map(a => {
+    const ok = unlocked(a);
+    return `<button type="button" data-a="${a}" class="${a === pickedAvatar ? 'sel' : ''} ${ok ? '' : 'locked'}" ${ok ? '' : 'disabled'} title="${ok ? '' : 'Locked — open a Mystery Chest in the Shop'}">${ok ? a : '🔒'}</button>`;
+  }).join('');
   box.querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
+    if(b.disabled) return;
     pickedAvatar = b.dataset.a;
     box.querySelectorAll('button').forEach(x => x.classList.toggle('sel', x === b));
     renderFrAvatars();
@@ -1623,6 +2008,7 @@ function startGame(){
   state = defaultState();
   state.character = { name: name || 'Player', avatar: pickedAvatar };
   state.class = pickedClass;
+  genMissions();
   save();
   el('firstRun').classList.add('hidden');
   el('app').classList.remove('hidden');
@@ -1642,6 +2028,7 @@ function init(){
     setupFirstRun();
   } else {
     rollover();
+    genMissions();
     save();
     el('app').classList.remove('hidden');
     renderAll();
@@ -1650,6 +2037,14 @@ function init(){
 
   el('tabbar').querySelectorAll('.tab').forEach(t =>
     t.addEventListener('click', () => switchTab(t.dataset.tab)));
+  document.querySelectorAll('#sidebar .sb-tab').forEach(t =>
+    t.addEventListener('click', () => switchTab(t.dataset.tab)));
+  applyTheme();
+  const chOk = el('chestOk');
+  if(chOk) chOk.addEventListener('click', () => hide(el('chestModal')));
+  const chX = el('chestClose');
+  if(chX) chX.addEventListener('click', () => hide(el('chestModal')));
+  el('chestModal').addEventListener('click', e => { if(e.target === el('chestModal')) hide(el('chestModal')); });
 
   el('tbRules').addEventListener('click', openRulesBook);
   el('rulesClose').addEventListener('click', () => hide(el('rulesModal')));

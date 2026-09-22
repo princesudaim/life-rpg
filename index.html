@@ -38,6 +38,23 @@
   </div>
 
   <!-- MAIN APP -->
+  <div id="shell">
+  <aside id="sidebar" class="hidden">
+    <div class="sb-logo">LIFE<span>RPG</span></div>
+    <nav class="sb-nav">
+      <button data-tab="character" class="sb-tab active">👁️<span>Player</span></button>
+      <button data-tab="quests" class="sb-tab">⚔️<span>Quests</span></button>
+      <button data-tab="missions" class="sb-tab">🚩<span>Missions</span></button>
+      <button data-tab="log" class="sb-tab">📜<span>Log</span></button>
+      <button data-tab="shop" class="sb-tab">🛒<span>Shop</span></button>
+      <button data-tab="settings" class="sb-tab">📖<span>Rules</span></button>
+    </nav>
+    <div class="sb-foot">
+      <div class="chip" id="sbLevel">Lv 1 · E</div>
+      <div class="chip gold" id="sbGold">◈ 0</div>
+      <div class="chip fire" id="sbStreak">🔥 0</div>
+    </div>
+  </aside>
   <main id="app" class="hidden">
     <header id="topbar">
       <div class="chip" id="tbLevel">Lv 1</div>
@@ -48,6 +65,7 @@
 
     <section id="view-character" class="view"></section>
     <section id="view-quests" class="view hidden"></section>
+    <section id="view-missions" class="view hidden"></section>
     <section id="view-log" class="view hidden"></section>
     <section id="view-shop" class="view hidden"></section>
     <section id="view-settings" class="view hidden"></section>
@@ -55,11 +73,14 @@
     <nav id="tabbar">
       <button data-tab="character" class="tab active">👁️<span>Player</span></button>
       <button data-tab="quests" class="tab">⚔️<span>Quests</span></button>
+      <button data-tab="missions" class="tab">🚩<span>Missions</span></button>
       <button data-tab="log" class="tab">📜<span>Log</span></button>
       <button data-tab="shop" class="tab">🛒<span>Shop</span></button>
       <button data-tab="settings" class="tab">⚙️<span>Rules</span></button>
     </nav>
   </main>
+  <aside id="rail" class="hidden"></aside>
+  </div>
 
   <!-- LEVEL UP / RANK UP cinematic -->
   <div id="fxOverlay" class="overlay hidden">
@@ -151,6 +172,20 @@
         <p class="hint" id="blessingGreet" style="margin:10px 0">The System greets you, Player. You opened your game for a new day.</p>
         <div class="fx-sub">CLAIM <b id="blessingAmt">+10 ◈</b></div>
         <button class="btn primary big" id="blessingClaim" style="margin-top:12px">Claim Blessing</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CHEST RESULT modal -->
+  <div id="chestModal" class="overlay hidden">
+    <div class="sys-window narrow">
+      <div class="win-bar"><span class="win-title">Chest Opened</span><button class="win-x" id="chestClose">✕</button></div>
+      <div class="win-body chest-body">
+        <div class="chest-icon" id="chestIcon"></div>
+        <div class="chest-title" id="chestTitle"></div>
+        <div class="chest-desc" id="chestDesc"></div>
+        <div class="hint" id="chestSub" style="margin-top:10px"></div>
+        <button class="btn primary" id="chestOk" style="margin-top:16px">Collect</button>
       </div>
     </div>
   </div>
