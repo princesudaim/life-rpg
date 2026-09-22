@@ -10,20 +10,23 @@ const KEY = 'liferpg_v1';
 
 const AVATARS = ['⚔️','🗡️','🌙','👁️','🔥','⚡','💀','🐺','🦅','🌊','🎯','🛡️'];
 
-const CLASSES = {
-  warrior:   { name:'Warrior',   icon:'⚔️', stat:'STR', conStat:'INT',
-               pro:'+25% EXP from Body quests', con:'-15% EXP from Mind quests' },
-  mage:      { name:'Mage',      icon:'🔮', stat:'INT', conStat:'STR',
-               pro:'+25% EXP from Mind quests', con:'-15% EXP from Body quests' },
-  guardian:  { name:'Guardian',  icon:'🛡️', stat:'VIT', conStat:'CHA',
-               pro:'Half HP penalty when streak breaks', con:'-15% EXP from Social quests' },
-  trickster: { name:'Trickster', icon:'🃏', stat:'CHA', conStat:'VIT',
-               pro:'+25% EXP from Social quests', con:'-15% EXP from Discipline quests' },
-};
+
 const CAT_STAT = { Body:'STR', Mind:'INT', Discipline:'VIT', Social:'CHA' };
 const START_SIGILS = ['\u2694\uFE0F','\u{1F5E1}\uFE0F','\u{1F319}','\u{1F441}\uFE0F'];
 const TITLES = ['The Unbroken','Night Blade','Iron Will','Silent Storm','First of the Dawn','Abyss Walker','King of the Night','Eclipse','Stormcaller','The Patient Hunter'];
-const RANKS = [ {r:'E',exp:0}, {r:'D',exp:500}, {r:'C',exp:1500}, {r:'B',exp:4000}, {r:'A',exp:10000}, {r:'S',exp:25000}, {r:'SS',exp:60000} ];
+const RANKS = [
+  { r:'BRONZE',   icon:'\u{1F949}', exp:0 },
+  { r:'SILVER',   icon:'\u{1F948}', exp:500 },
+  { r:'GOLD',     icon:'\u{1F947}', exp:1500 },
+  { r:'PLATINUM', icon:'\u{1F52F}', exp:4000 },
+  { r:'DIAMOND',  icon:'\u{1F48E}', exp:10000 },
+  { r:'CROWN',    icon:'\u{1F451}', exp:25000 },
+];
+const CRATES = {
+  wood:    { icon:'\u{1FAB5}', name:'Wooden Crate',  desc:'Earn 100 EXP today',             goals:{quests:0, exp:100, perfect:0}, rewardHint:'20\u201345 \u25C8 \u00B7 EXP' },
+  gold:    { icon:'\u{1FA99}', name:'Gold Crate',    desc:'Earn 250 EXP today',             goals:{quests:0, exp:250, perfect:0}, rewardHint:'50\u2013100 \u25C8 \u00B7 potion \u00B7 title' },
+  diamond: { icon:'\u{1F48E}', name:'Diamond Crate', desc:'Earn 500 EXP + 5 quests today',  goals:{quests:5, exp:500, perfect:0}, rewardHint:'120\u2013220 \u25C8 \u00B7 saver \u00B7 title' },
+};
 const QUOTES = [
   'Only you level up.',
   'The System does not negotiate. But it keeps the score.',
@@ -162,6 +165,8 @@ function defaultState(){
     inventory:{ streakSaver:0, hpPotion:0 },
     lastBlessingDay:null,
     missions:{ day:null, list:[] },
+    crates:{ day:null, tier:null, progress:{quests:0,exp:0,perfect:0}, done:false, claimed:false },
+    dayExp:0,
     collection:{ sigils: START_SIGILS.slice(), titles:[] },
     activeTitle:null,
     dayQuests:0, bestQuestsDay:0,
@@ -198,6 +203,13 @@ function migrate(s){
   s.lastBlessingDay = (s.lastBlessingDay === null || typeof s.lastBlessingDay === 'string') ? s.lastBlessingDay : null;
   if(!s.missions || typeof s.missions !== 'object') s.missions = { day:null, list:[] };
   if(!Array.isArray(s.missions.list)) s.missions.list = [];
+  if(!s.crates || typeof s.crates !== 'object') s.crates = { day:null, tier:null, progress:{quests:0,exp:0,perfect:0}, done:false, claimed:false };
+  if(!s.crates.progress || typeof s.crates.progress !== 'object') s.crates.progress = {quests:0,exp:0,perfect:0};
+  if(!['wood','gold','diamond'].includes(s.crates.tier)) s.crates.tier = null;
+  s.crates.progress.quests = Math.max(0, Number(s.crates.progress.quests) || 0);
+  s.crates.progress.exp = Math.max(0, Number(s.crates.progress.exp) || 0);
+  s.crates.progress.perfect = Math.max(0, Number(s.crates.progress.perfect) || 0);
+  if(!isFinite(Number(s.dayExp))) s.dayExp = 0;
   s.missions.list = s.missions.list.map(m => ({
     id: String(m.id || 'm'), icon: String(m.icon || '⭐'), desc: String(m.desc || 'Mission'),
     target: Math.max(1, Number(m.target) || 1), key: String(m.key || ''),
@@ -233,7 +245,7 @@ function migrate(s){
 function sanitize(d){
   const def = defaultState();
   d.created = Number(d.created) || Date.now();
-  d.class = CLASSES[d.class] ? d.class : 'warrior';
+  d.class = typeof d.class === 'string' ? d.class : 'warrior';
   d.exp = Math.max(0, Number(d.exp) || 0);
   d.hp = Math.max(0, Number(d.hp) || 0);
   d.gold = Math.max(0, Number(d.gold) || 0);
@@ -248,6 +260,13 @@ function sanitize(d){
   d.lastBlessingDay = (d.lastBlessingDay === null || typeof d.lastBlessingDay === 'string') ? d.lastBlessingDay : null;
   d.lastQuestDay = typeof d.lastQuestDay === 'string' ? d.lastQuestDay : null;
   d.missions = { day: typeof d.missions?.day === 'string' ? d.missions.day : null, list: Array.isArray(d.missions?.list) ? d.missions.list : [] };
+  d.crates = {
+    day: typeof d.crates?.day === 'string' ? d.crates.day : null,
+    tier: ['wood','gold','diamond'].includes(d.crates?.tier) ? d.crates.tier : null,
+    progress:{ quests:Math.max(0,Number(d.crates?.progress?.quests)||0), exp:Math.max(0,Number(d.crates?.progress?.exp)||0), perfect:Math.max(0,Number(d.crates?.progress?.perfect)||0) },
+    done:!!d.crates?.done, claimed:!!d.crates?.claimed,
+  };
+  d.dayExp = Math.max(0, Number(d.dayExp) || 0);
   d.collection = { sigils: Array.isArray(d.collection?.sigils) ? d.collection.sigils.filter(x => typeof x === 'string') : START_SIGILS.slice(), titles: Array.isArray(d.collection?.titles) ? d.collection.titles.filter(x => typeof x === 'string') : [] };
   d.activeTitle = typeof d.activeTitle === 'string' ? d.activeTitle : null;
   d.dayQuests = Math.max(0, Number(d.dayQuests) || 0);
@@ -367,12 +386,16 @@ function levelFromExp(total){
 }
 function rankForLevel(l){
   const s = state.settings;
-  if(l >= s.rankS) return 'S';
-  if(l >= s.rankA) return 'A';
-  if(l >= s.rankB) return 'B';
-  if(l >= s.rankC) return 'C';
-  if(l >= s.rankD) return 'D';
-  return 'E';
+  if(l >= s.rankS) return 'CROWN';
+  if(l >= s.rankA) return 'DIAMOND';
+  if(l >= s.rankB) return 'PLATINUM';
+  if(l >= s.rankC) return 'GOLD';
+  if(l >= s.rankD) return 'SILVER';
+  return 'BRONZE';
+}
+function rankIcon(name){
+  const r = RANKS.find(x => x.r === name);
+  return r ? r.icon : RANKS[0].icon;
 }
 function titleForLevel(l){
   if(l >= 30) return 'Shadow Monarch';
@@ -386,11 +409,15 @@ function maxHp(){ return state.settings.maxHp + (levelFromExp(state.exp).level -
 
 function rankLadder(){
   const info = rankInfo();
-  const cells = RANKS.map(r => `<span class="rl-cell ${r.r === info.cur.r ? 'on' : (info.te >= r.exp ? 'passed' : '')}">${r.r}</span>`).join('');
   return `<div class="rank-ladder">
-    <div class="rl-head"><span>SYSTEM RANK</span><span class="rl-next">${info.next ? fmt(info.next.exp - info.te) + ' EXP to ' + info.next.r : 'MAX RANK'}</span></div>
-    <div class="rl-row">${cells}</div>
-    <div class="bar" style="margin-top:8px"><i style="width:${info.pct}%"></i></div>
+    <div class="rl-top">
+      <span class="rl-icon">${info.cur.icon}</span>
+      <div class="rl-main">
+        <div class="rl-name">RANK &nbsp;<b>${info.cur.r}</b></div>
+        <div class="rl-next">${info.next ? fmt(info.next.exp - info.te) + ' EXP to ' + info.next.icon + ' ' + info.next.r : '★ MAX RANK REACHED'}</div>
+      </div>
+    </div>
+    <div class="bar" style="margin-top:10px"><i style="width:${info.pct}%"></i></div>
     <div class="rl-best">🔥 best streak ${state.bestStreak || 0} &nbsp;·&nbsp; ⭐ best day ${state.bestQuestsDay || 0} quests</div>
   </div>`;
 }
@@ -478,7 +505,7 @@ function rollover(){
   const t = todayStr();
   if(state.day !== t){
     if(state.lastQuestDay !== yesterdayStr()){
-      const pen = Math.round(state.settings.hpPenalty * (state.class === 'guardian' ? 0.5 : 1));
+      const pen = state.settings.hpPenalty;
       if(state.inventory.streakSaver > 0){
         state.inventory.streakSaver--;
         state.lastQuestDay = yesterdayStr();
@@ -491,7 +518,8 @@ function rollover(){
     }
     state.day = t;
     state.dayQuests = 0;
-    genMissions();
+    state.dayExp = 0;
+    crateReset();
     changed = true;
   }
 
@@ -530,6 +558,9 @@ function applyReward({ exp, gold = 0, name, icon, statKey = null, ev = null }){
   state.gold += gold;
   state.totalGold += gold;
   state.totalQuests++;
+  state.dayQuests++;
+  state.dayExp = (state.dayExp || 0) + exp;
+  state.bestQuestsDay = Math.max(state.bestQuestsDay || 0, state.dayQuests);
   if(statKey) state.stats[statKey] += statPoints(exp);
   state.hp = Math.min(maxHp(), state.hp + state.settings.hpHeal);
   state.log.unshift({ ts:Date.now(), name, icon:icon || '⭐', exp, gold });
@@ -567,20 +598,11 @@ function checkIn(qid, ev){
   if(!q) return;
   if(q.timesDone >= q.dailyLimit){ toast('Already at the limit for this period.'); return; }
   q.timesDone++;
-  let exp = q.exp;
+  const exp = q.exp;
   const cat = statForCategory(q.category);
-  const cls = CLASSES[state.class];
-  if(cls && cat){
-    if(cls.stat === cat) exp = Math.round(q.exp * 1.25);
-    else if(cls.conStat === cat) exp = Math.max(1, Math.round(q.exp * 0.85));
-  }
   applyReward({ exp, gold:q.gold, name:q.name, icon:q.icon, statKey:cat, ev });
   checkPerfects(q.freq);
-  state.dayQuests++;
-  state.bestQuestsDay = Math.max(state.bestQuestsDay || 0, state.dayQuests);
-  missionBump('quests', 1);
-  missionBump('exp', exp);
-  save();
+  crateBump();
   // variable reward: the System occasionally smiles (15% luck)
   if(Math.random() < 0.15){
     const bonus = 5 + Math.floor(Math.random() * 3) * Math.max(1, q.gold);
@@ -661,7 +683,7 @@ function checkPerfects(freq){
     toast('🌟 PERFECT ' + (freq === 'daily' ? 'DAY' : freq === 'weekly' ? 'WEEK' : 'MONTH') +
       ' — all ' + freq + ' quests done! +' + bonus + ' ◈');
     sfxLevelUp();
-    if(freq === 'daily') missionBump('perfect', 1);
+    if(freq === 'daily' && state.crates && state.crates.tier){ state.crates.progress.perfect = 1; crateBump(); }
   }
 }
 
@@ -725,7 +747,7 @@ function renderAll(){
   renderTopbar();
   renderCharacter();
   renderQuests();
-  renderMissions();
+  renderCrates();
   renderLog();
   renderShop();
   renderSettings();
@@ -734,7 +756,7 @@ function renderAll(){
 
 function renderTopbar(){
   const { level } = levelFromExp(state.exp);
-  el('tbLevel').textContent = `Lv ${level} · ${rankForLevel(level)}`;
+  el('tbLevel').textContent = `Lv ${level} · ${rankIcon(rankForLevel(level))}`;
   el('tbGold').textContent = `◈ ${fmt(state.gold)}`;
   el('tbStreak').textContent = `🔥 ${state.streak}`;
   const sbL = el('sbLevel'), sbG = el('sbGold'), sbS = el('sbStreak');
@@ -743,23 +765,31 @@ function renderTopbar(){
   if(sbS) sbS.textContent = `🔥 ${state.streak}`;
 }
 
+function crateMini(){
+  const c = state.crates;
+  if(!c.tier) return '<div class="hint">Pick today\'s crate in the Crates tab.</div>';
+  const r = CRATES[c.tier], g = r.goals, p = c.progress;
+  const pct = c.done ? 100 : (g.exp ? Math.min(100, Math.round(p.exp / g.exp * 100)) : (g.quests ? Math.min(100, Math.round(p.quests / g.quests * 100)) : 0));
+  const line = [];
+  if(g.quests) line.push(p.quests + '/' + g.quests + ' quests');
+  if(g.exp) line.push(fmt(p.exp) + '/' + fmt(g.exp) + ' EXP');
+  return `<div class="rail-boss-name">${r.icon} ${esc(r.name)}${c.done ? ' ✓' : ''}</div>
+    <div class="bar" style="margin-top:8px"><i style="width:${pct}%"></i></div>
+    <div class="hint" style="margin-top:6px">${c.done ? 'Complete!' : line.join(' · ')}</div>`;
+}
+
 function renderRail(){
   const r = el('rail');
   if(!r) return;
   const { level, into, needed } = levelFromExp(state.exp);
   const rank = rankForLevel(level);
   const mh = maxHp();
-  const ms = state.missions || { list:[] };
-  const mrows = (ms.list || []).map(m => {
-    const pct = Math.min(100, Math.round(m.progress / m.target * 100));
-    return `<div class="rail-m ${m.progress >= m.target ? 'done' : ''}" title="${esc(m.desc)} — ${m.progress}/${m.target}"><span>${esc(m.icon)}</span><div class="bar" style="flex:1"><i style="width:${pct}%"></i></div></div>`;
-  }).join('');
   const b = state.boss, bs = state.settings;
   const bdef = b.done >= bs.bossPhases;
   const bpct = Math.round(b.done / bs.bossPhases * 100);
   r.innerHTML = `
     <div class="sys-window rail-card">
-      <div class="win-bar"><span class="win-title">${esc(state.character.name)}</span><span class="rank-chip rank-${rank}">${rank}</span></div>
+      <div class="win-bar"><span class="win-title">${esc(state.character.name)}</span><span class="rank-chip rank-${rank}">${rankIcon(rank)}</span></div>
       <div class="win-body">
         <div class="bar-block"><div class="bar-label"><span>Level ${level}</span><span>${fmt(into)} / ${fmt(needed)} EXP</span></div>
           <div class="bar"><i style="width:${Math.min(100, Math.round(into / needed * 100))}%"></i></div></div>
@@ -769,8 +799,8 @@ function renderRail(){
       </div>
     </div>
     <div class="sys-window rail-card">
-      <div class="win-bar"><span class="win-title">Missions</span><span class="time-chip">⏳ ${timeLeftToday()}</span></div>
-      <div class="win-body">${mrows || '<div class="hint">Missions arriving…</div>'}</div>
+      <div class="win-bar"><span class="win-title">Crate</span><span class="time-chip">⏳ ${timeLeftToday()}</span></div>
+      <div class="win-body">${crateMini()}</div>
     </div>
     <div class="sys-window rail-card">
       <div class="win-bar"><span class="win-title">Boss</span>${bdef ? '<span class="win-sub">defeated</span>' : ''}</div>
@@ -785,7 +815,6 @@ function renderRail(){
 function renderCharacter(){
   const { level, into, needed } = levelFromExp(state.exp);
   const rank = rankForLevel(level);
-  const cls = CLASSES[state.class] || CLASSES.warrior;
   const mh = maxHp();
   const expPct = Math.min(100, Math.round(into / needed * 100));
   const hpPct = Math.max(0, Math.min(100, Math.round(state.hp / mh * 100)));
@@ -803,8 +832,7 @@ function renderCharacter(){
           <div class="p-avatar">${av}</div>
           <div style="flex:1;min-width:0">
             <div class="p-name">${esc(state.character.name)}</div>
-            <div class="p-title">${esc(titleForLevel(level))} · ${cls.icon} ${cls.name}${state.activeTitle ? ` <span class="p-atitle">◆ ${esc(state.activeTitle)}</span>` : ''}</div>
-            <div class="p-classpro"><span class="pro">▲ ${esc(cls.pro)}</span> &nbsp;·&nbsp; <span class="con">▼ ${esc(cls.con)}</span></div>
+            <div class="p-title">${esc(titleForLevel(level))}${state.activeTitle ? ` <span class="p-atitle">◆ ${esc(state.activeTitle)}</span>` : ''}</div>
           </div>
           <div class="p-lvl"><b>${level}</b><span>LEVEL</span></div>
         </div>
@@ -982,34 +1010,46 @@ function renderQuests(){
   if(si) si.addEventListener('click', systemIgnore);
 }
 
-function renderMissions(){
-  const ms = state.missions || { list:[] };
-  const rows = (ms.list || []).map(m => {
-    const pct = Math.min(100, Math.round(m.progress / m.target * 100));
-    const done = m.progress >= m.target;
-    return `<div class="mission ${done ? 'done' : ''}">
-      <span class="mi-icon">${esc(m.icon)}</span>
-      <div class="mi-body">
-        <div class="mi-name">${esc(m.desc)}</div>
-        <div class="bar" style="margin-top:6px"><i style="width:${pct}%"></i></div>
-        <div class="mi-meta">${done ? '✓ complete' : m.progress + ' / ' + m.target} &nbsp;·&nbsp; +${m.reward} ◈</div>
-      </div>
-      ${done ? '<span class="mi-check">✓</span>' : ''}
-    </div>`;
+function renderCrates(){
+  crateReset();
+  const c = state.crates;
+  const cards = Object.keys(CRATES).map(k => {
+    const r = CRATES[k];
+    const isChosen = c.tier === k;
+    const dimmed = !!c.tier && !isChosen;
+    let inner = '';
+    if(isChosen){
+      const g = r.goals, p = c.progress;
+      const bars = [];
+      if(g.quests) bars.push('<div class="bar"><i style="width:' + Math.min(100, Math.round(p.quests / g.quests * 100)) + '%"></i></div><div class="crate-prog">' + p.quests + '/' + g.quests + ' quests</div>');
+      if(g.exp) bars.push('<div class="bar"><i style="width:' + Math.min(100, Math.round(p.exp / g.exp * 100)) + '%"></i></div><div class="crate-prog">' + fmt(p.exp) + '/' + fmt(g.exp) + ' EXP</div>');
+      inner = c.done ? '<div class="crate-status">✓ UNLOCKED</div>' : bars.join('');
+    } else {
+      inner = '<button class="btn small ' + (dimmed ? 'ghost' : 'primary') + '" data-crate="' + k + '" ' + (dimmed ? 'disabled' : '') + '>' + (dimmed ? 'Locked' : 'Choose') + '</button>';
+    }
+    return '<div class="crate ' + (isChosen ? 'chosen' : '') + ' ' + (dimmed ? 'dim' : '') + '">' +
+      '<div class="crate-icon">' + r.icon + '</div>' +
+      '<div class="crate-name">' + r.name + '</div>' +
+      '<div class="crate-goal">' + r.desc + '</div>' +
+      '<div class="crate-reward">' + r.rewardHint + '</div>' +
+      inner +
+    '</div>';
   }).join('');
-  el('view-missions').innerHTML = `
+  el('view-crates').innerHTML = `
     <div class="sys-window">
-      <div class="win-bar"><span class="win-title">Daily Missions</span>
-        <span class="time-chip">⏳ ${timeLeftToday()} left</span></div>
+      <div class="win-bar"><span class="win-title">Crates</span>
+        <span class="time-chip">\u23F3 ${timeLeftToday()} left</span></div>
       <div class="win-body">
-        <div class="gold-note">Complete all three for a <b>+15 ◈</b> Mission Master bonus. Missions reset at midnight.</div>
-        ${rows || '<div class="empty">Missions arriving…</div>'}
+        <div class="gold-note">Pick <b>one</b> crate per day — it's a challenge, not a mission. The clock starts when you choose, and you cannot switch. Beat it before midnight and the crate opens.</div>
+        <div class="crates-row">${cards}</div>
         <div class="quote-box">
-          <div class="quote">“${esc(dailyQuote())}”</div>
-          <div class="quote-src">— The System, ${new Date().toLocaleDateString()}</div>
+          <div class="quote">\u201C${esc(dailyQuote())}\u201D</div>
+          <div class="quote-src">\u2014 The System, ${new Date().toLocaleDateString()}</div>
         </div>
       </div>
     </div>`;
+  document.querySelectorAll('[data-crate]').forEach(b =>
+    b.addEventListener('click', () => chooseCrate(b.dataset.crate)));
 }
 
 function renderLog(){
@@ -1103,12 +1143,13 @@ function renderShop(){
       </div>
     </div>
     <div class="sys-window" style="margin-top:14px">
-      <div class="win-bar"><span class="win-title">Collection</span><span class="win-sub">${state.collection.sigils.length}/12 sigils \u00B7 ${state.collection.titles.length} titles</span></div>
+      <div class="win-bar"><span class="win-title">Badge Collection</span><span class="win-sub">${state.badges.length}/${BADGES.length} badges \u00B7 ${state.collection.titles.length} titles</span></div>
       <div class="win-body" style="padding-top:8px">
-        <div class="col-sigils">${AVATARS.map(a => {
-          const owned = state.collection.sigils.includes(a);
-          const active = state.character.avatar === a;
-          return `<span class="col-sigil ${owned ? '' : 'locked'} ${active ? 'active' : ''}" title="${owned ? a : 'Locked \u2014 open a Mystery Chest'}">${owned ? a : '\u{1F512}'}</span>`;
+        <div class="col-badges">${BADGES.map(b => {
+          const owned = state.badges.includes(b.id);
+          return owned
+            ? `<span class="col-badge" title="${esc(b.desc)}">${b.icon}<small>${esc(b.name)}</small></span>`
+            : `<span class="col-badge locked" title="Locked \u2014 ${esc(b.desc)}">\u2753<small>Locked</small></span>`;
         }).join('')}</div>
         <div class="col-titles">
           ${state.collection.titles.length ? state.collection.titles.map(t =>
@@ -1190,11 +1231,6 @@ function renderSettings(){
         <div class="row2">
           <label class="field"><span>SIGIL (EMOJI AVATAR)</span>
             <input id="setAvatar" maxlength="4" value="${/^data:/.test(state.character.avatar) ? '' : esc(state.character.avatar)}" placeholder="pick an emoji" autocomplete="off">
-          </label>
-          <label class="field"><span>CLASS</span>
-            <select id="setClass">${Object.entries(CLASSES).map(([k, c]) =>
-              `<option value="${k}" ${state.class === k ? 'selected' : ''}>${c.icon} ${c.name}</option>`).join('')}
-            </select>
           </label>
         </div>
         <div class="row2">
@@ -1328,7 +1364,6 @@ create policy "open personal sync"
     state.character.name = el('setName').value.trim() || 'Player';
     const av = el('setAvatar').value.trim();
     if(av) state.character.avatar = av;
-    state.class = el('setClass').value;
     save(); renderAll(); toast('Character updated.');
   });
   const upBtn = el('uploadAvBtn');
@@ -1388,7 +1423,7 @@ const RULES_TEXT = `
 <div class="rules-row"><span class="rules-num">1</span><div><b>Quests.</b> Daily quests reset at midnight. Weekly quests reset on Monday. Monthly quests reset on the 1st. Check in ONLY when you truly did the thing — the System can feel a lie.</div></div>
 <div class="rules-row"><span class="rules-num">2</span><div><b>Streak.</b> Complete at least ONE quest each day and your streak grows by 1. Miss a day and it breaks — and the System takes HP for it. A Streak Saver, if you own one, freezes one missed day so the streak survives.</div></div>
 <div class="rules-row"><span class="rules-num">3</span><div><b>EXP &amp; Levels.</b> Every quest gives EXP. Level up when your bar fills. Higher level = higher EXP need, more max HP, and a better title. Titles: Novice, Challenger, Warrior, Elite, Hero, Hunter, Shadow Monarch, Archon, Sovereign.</div></div>
-<div class="rules-row"><span class="rules-num">4</span><div><b>Classes have a power AND a weakness.</b> Your class boosts EXP from its matching quest type, and cuts EXP from its opposite type by 15%. Guardian's power is special: it halves the HP penalty of a broken streak.</div></div>
+<div class="rules-row"><span class="rules-num">4</span><div><b>Truth only.</b> The System rewards actions, not words. Check in ONLY when you truly did the thing — a fake check-in is a debt, and the System keeps a ledger.</div></div>
 <div class="rules-row"><span class="rules-num">5</span><div><b>Stats.</b> Each quest feeds one stat: Body → STR, Mind → INT, Discipline → VIT, Social → CHA, Other → a little of everything.</div></div>
 <div class="rules-row"><span class="rules-num">6</span><div><b>HP.</b> HP is your health. Breaking your streak hurts you (Guardian: half as much). At zero HP the System gives you a quest — finish it and you get 30 HP back. You can also drink HP Potions from the Shop.</div></div>
 <div class="rules-row"><span class="rules-num">7</span><div><b>Gold.</b> Every quest earns gold. Spend it on real-world rewards you create in the Shop, or on Power-ups: Streak Saver (150) and HP Potion (100).</div></div>
@@ -1396,9 +1431,9 @@ const RULES_TEXT = `
 <div class="rules-row"><span class="rules-num">9</span><div><b>Perfect Days.</b> Finish every daily quest in a day and earn the "Flawless" badge. Complete a whole week and earn "Undeniable". Perfect days are counted per week.</div></div>
 <div class="rules-row"><span class="rules-num">10</span><div><b>Daily Blessing.</b> Open the game each day and the System greets you with gold: 10 ◈ plus 2 ◈ per streak day. It is a small thank-you for showing up.</div></div>
 <div class="rules-row"><span class="rules-num">11</span><div><b>Luck.</b> 15% of check-ins bring a lucky gold bonus. The System is fickle — that is why you check in.</div></div>
-<div class="rules-row"><span class="rules-num">12</span><div><b>System Ranks.</b> Your lifetime EXP moves you up the rank ladder: E → D → C → B → A → S → SS (500 / 1,500 / 4,000 / 10,000 / 25,000 / 60,000 EXP). Your personal records — longest streak and best quest day — are shown under the ladder.</div></div>
-<div class="rules-row"><span class="rules-num">13</span><div><b>Daily Missions.</b> Each day the System assigns three missions: 2 quests, 60 EXP, and a Perfect Day. Each pays gold, and finishing all three pays a +15 ◈ Mission Master bonus. They reset at midnight — the countdown is on the Missions tab.</div></div>
-<div class="rules-row"><span class="rules-num">14</span><div><b>Chests &amp; Collection.</b> The Shop has a Free Supply (10–30 ◈, once a day) and a Mystery Chest (60 ◈) with random drops: gold, EXP, HP Potion, Streak Saver, a new sigil, or a new title. Everything you unlock lives in your Collection; locked sigils stay locked in the avatar picker. If you already own everything in a drop category, the chest refunds 50 ◈ instead.</div></div>
+<div class="rules-row"><span class="rules-num">12</span><div><b>System Ranks.</b> Your rank climbs with your power, lobby by lobby: BRONZE → SILVER → GOLD → PLATINUM → DIAMOND → CROWN (500 / 1,500 / 4,000 / 10,000 / 25,000 lifetime EXP). Your personal records — longest streak and best quest day — sit under the rank card.</div></div>
+<div class="rules-row"><span class="rules-num">13</span><div><b>Crates.</b> Each day the System offers three crates — a challenge, not a mission: Wooden (earn 100 EXP, small reward), Gold (earn 250 EXP, medium reward), Diamond (earn 500 EXP + 5 quests, big reward). Choose ONE — the clock starts immediately and you cannot switch. Finish it before midnight and the crate opens: Wooden 20–45 ◈ · Gold 50–100 ◈, potion, title · Diamond 120–220 ◈, Streak Saver, title.</div></div>
+<div class="rules-row"><span class="rules-num">14</span><div><b>Chests &amp; Collection.</b> The Shop has a Free Supply (10–30 ◈, once a day) and a Mystery Chest (60 ◈) with random drops: gold, EXP, HP Potion, Streak Saver, or a new title. Your Badge Collection shows every badge you have earned — the locked ones wait there until you earn them. Bonus titles from chests can be worn on your card.</div></div>
 <div class="rules-row"><span class="rules-num">15</span><div><b>Your life, your rules.</b> Every number on this page — EXP, gold, HP penalties, boss HP, blessing size, theme, quest layout — can be changed in Settings → Game Master. The System obeys you, Player. Even this book does not stop you rewriting the world.</div></div>
 `;
 
@@ -1547,23 +1582,18 @@ function buyPowerup(key, cost){
 
 function rollChest(){
   const pool = [
-    { type:'gold', w:38 }, { type:'exp', w:10 }, { type:'potion', w:16 },
-    { type:'saver', w:8 }, { type:'sigil', w:22 }, { type:'title', w:12 },
+    { type:'gold', w:40 }, { type:'exp', w:12 }, { type:'potion', w:22 },
+    { type:'saver', w:10 }, { type:'title', w:16 },
   ];
   let tot = 0; for(const p of pool) tot += p.w;
   let r = Math.random() * tot, pick = pool[0];
   for(const p of pool){ r -= p.w; if(r < 0){ pick = p; break; } }
   const res = { type: pick.type };
-  const lockedS = AVATARS.filter(a => !state.collection.sigils.includes(a));
   const lockedT = TITLES.filter(t => !state.collection.titles.includes(t));
   if(pick.type === 'gold'){ res.icon = '◈'; res.amount = 20 + Math.floor(Math.random() * 41); res.desc = res.amount + ' ◈ gold'; }
   else if(pick.type === 'exp'){ res.icon = '✨'; res.amount = 50 + Math.floor(Math.random() * 101); res.desc = '+' + res.amount + ' EXP'; }
   else if(pick.type === 'potion'){ res.icon = '🧪'; state.inventory.hpPotion++; res.desc = 'HP Potion — +50 HP'; }
   else if(pick.type === 'saver'){ res.icon = '🧊'; state.inventory.streakSaver++; res.desc = 'Streak Saver — auto-protects one missed day'; }
-  else if(pick.type === 'sigil'){
-    if(lockedS.length){ const a = lockedS[Math.floor(Math.random() * lockedS.length)]; state.collection.sigils.push(a); res.icon = a; res.desc = 'New sigil unlocked — find it in your Collection'; }
-    else { res.icon = '◈'; res.amount = 50; res.desc = 'All sigils already owned — 50 ◈ back'; }
-  }
   else {
     if(lockedT.length){ const t = lockedT[Math.floor(Math.random() * lockedT.length)]; state.collection.titles.push(t); res.icon = '🏷️'; res.desc = 'New title: ' + t; }
     else { res.icon = '◈'; res.amount = 50; res.desc = 'All titles already owned — 50 ◈ back'; }
@@ -1601,6 +1631,78 @@ function showChestResult(r){
   el('chestDesc').textContent = r.desc;
   el('chestSub').textContent = r.sub || '';
   show(el('chestModal'));
+}
+
+/* ---------------- daily crates (challenges) ---------------- */
+
+function crateReset(){
+  const t = todayStr();
+  if(!state) return;
+  if(!state.crates || state.crates.day !== t){
+    state.crates = { day:t, tier:null, progress:{quests:0, exp:0, perfect:0}, done:false, claimed:false };
+  }
+}
+
+function chooseCrate(tier){
+  if(!state || !CRATES[tier]) return;
+  const c = state.crates;
+  if(c.tier){ toast('Today\'s crate is already locked in. Choose once \u2014 the System respects commitment.'); return; }
+  c.tier = tier;
+  c.progress = {
+    quests: state.dayQuests,
+    exp: state.dayExp || 0,
+    perfect: (state.perfect && state.perfect.d === periodFor('daily')) ? 1 : 0,
+  };
+  save(); renderAll();
+  toast('\u{1F4E6} ' + CRATES[tier].name + ' locked in: ' + CRATES[tier].desc);
+  crateBump();
+}
+
+function crateBump(){
+  const c = state && state.crates;
+  if(!c || !c.tier || c.done) return;
+  const g = CRATES[c.tier].goals;
+  c.progress.quests = Math.max(c.progress.quests, state.dayQuests);
+  c.progress.exp = Math.max(c.progress.exp, state.dayExp || 0);
+  const ok = (c.progress.quests >= g.quests) && (c.progress.exp >= g.exp) && (c.progress.perfect >= g.perfect);
+  if(ok){
+    c.done = true; c.claimed = true;
+    const res = rollCrateReward(c.tier);
+    if(res.type === 'exp'){
+      const before = levelFromExp(state.exp);
+      state.exp += res.amount;
+      const after = levelFromExp(state.exp);
+      if(after.level > before.level) levelUpFX(before.level, after.level, rankForLevel(before.level), rankForLevel(after.level));
+    }
+    save(); renderAll(); sfxLevelUp();
+    showChestResult({ icon: CRATES[c.tier].icon, title: CRATES[c.tier].name + ' \u2014 UNLOCKED', desc: res.desc, sub: CRATES[c.tier].desc });
+  } else {
+    save();
+  }
+}
+
+function rollCrateReward(tier){
+  const pools = {
+    wood:    [ {t:'gold', min:20, max:45, w:75}, {t:'exp', min:30, max:60, w:25} ],
+    gold:    [ {t:'gold', min:50, max:100, w:45}, {t:'exp', min:80, max:150, w:20}, {t:'potion', w:25}, {t:'title', w:10} ],
+    diamond: [ {t:'gold', min:120, max:220, w:30}, {t:'exp', min:200, max:350, w:20}, {t:'saver', w:25}, {t:'title', w:25} ],
+  };
+  const pool = pools[tier] || pools.wood;
+  let tot = 0; for(const p of pool) tot += p.w;
+  let r = Math.random() * tot, pick = pool[0];
+  for(const p of pool){ r -= p.w; if(r < 0){ pick = p; break; } }
+  const res = { type: pick.t };
+  const lockedT = TITLES.filter(t => !state.collection.titles.includes(t));
+  if(pick.t === 'gold'){ res.icon = '\u25C8'; res.amount = pick.min + Math.floor(Math.random() * (pick.max - pick.min + 1)); res.desc = res.amount + ' \u25C8 gold'; }
+  else if(pick.t === 'exp'){ res.icon = '\u2728'; res.amount = pick.min + Math.floor(Math.random() * (pick.max - pick.min + 1)); res.desc = '+' + res.amount + ' EXP'; }
+  else if(pick.t === 'potion'){ res.icon = '\u{1F9EA}'; state.inventory.hpPotion++; res.desc = 'HP Potion \u2014 +50 HP'; }
+  else if(pick.t === 'saver'){ res.icon = '\u{1F9CA}'; state.inventory.streakSaver++; res.desc = 'Streak Saver'; }
+  else {
+    if(lockedT.length){ const t = lockedT[Math.floor(Math.random() * lockedT.length)]; state.collection.titles.push(t); res.icon = '\u{1F3F7}\uFE0F'; res.desc = 'New title: ' + t; }
+    else { res.icon = '\u25C8'; res.amount = 50; res.desc = '50 \u25C8 (all titles owned)'; }
+  }
+  if(res.amount){ state.gold += res.amount; state.totalGold += res.amount; }
+  return res;
 }
 
 /* ---------------- backup ---------------- */
@@ -1835,7 +1937,6 @@ async function drawCardCanvas(){
 
   const { level, into, needed } = levelFromExp(state.exp);
   const rank = rankForLevel(level);
-  const cls = CLASSES[state.class] || CLASSES.warrior;
 
   if(/^data:/.test(state.character.avatar)){
     try{
@@ -1858,7 +1959,7 @@ async function drawCardCanvas(){
   x.font = '800 52px system-ui'; x.fillStyle = '#e0f2fe';
   x.fillText(state.character.name.toUpperCase(), W / 2, 385);
   x.font = '600 24px system-ui'; x.fillStyle = '#7d8db0';
-  x.fillText(cls.icon + ' ' + cls.name + '  ·  ' + titleForLevel(level), W / 2, 428);
+  x.fillText(titleForLevel(level), W / 2, 428);
   x.font = '800 88px system-ui'; x.fillStyle = '#7dd3fc';
   x.shadowColor = 'rgba(56,189,248,.9)'; x.shadowBlur = 28;
   x.fillText('LEVEL ' + level, W / 2, 540);
@@ -1952,7 +2053,7 @@ function sfxBadge(){ tone(1200, .15, { gain:.08, type:'triangle' }); }
 function switchTab(tab){
   el('tabbar').querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
   document.querySelectorAll('#sidebar .sb-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
-  ['character','quests','missions','log','shop','settings'].forEach(v =>
+  ['character','quests','crates','log','shop','settings'].forEach(v =>
     el('view-' + v).classList.toggle('hidden', v !== tab));
   if(window.innerWidth < 900) document.body.classList.remove('sb-open');
   renderAll();
@@ -1967,13 +2068,9 @@ function renderFrAvatars(){
 
 function setupFirstRun(){
   const box = el('frAvatars');
-  const unlocked = a => state ? state.collection.sigils.includes(a) : START_SIGILS.includes(a);
-  box.innerHTML = AVATARS.map(a => {
-    const ok = unlocked(a);
-    return `<button type="button" data-a="${a}" class="${a === pickedAvatar ? 'sel' : ''} ${ok ? '' : 'locked'}" ${ok ? '' : 'disabled'} title="${ok ? '' : 'Locked — open a Mystery Chest in the Shop'}">${ok ? a : '🔒'}</button>`;
-  }).join('');
+  box.innerHTML = AVATARS.map(a =>
+    `<button type="button" data-a="${a}" class="${a === pickedAvatar ? 'sel' : ''}">${a}</button>`).join('');
   box.querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
-    if(b.disabled) return;
     pickedAvatar = b.dataset.a;
     box.querySelectorAll('button').forEach(x => x.classList.toggle('sel', x === b));
     renderFrAvatars();
@@ -1989,17 +2086,6 @@ function setupFirstRun(){
   });
   renderFrAvatars();
 
-  const cx = el('frClasses');
-  cx.innerHTML = Object.entries(CLASSES).map(([k, c]) =>
-    `<button type="button" data-c="${k}" class="class-card ${k === pickedClass ? 'sel' : ''}">
-      <span class="cc-icon">${c.icon}</span><span class="cc-name">${c.name}</span>
-      <span class="cc-pro">▲ ${c.pro}</span>
-      <span class="cc-con">▼ ${c.con}</span></button>`).join('');
-  cx.querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
-    pickedClass = b.dataset.c;
-    cx.querySelectorAll('button').forEach(x => x.classList.toggle('sel', x === b));
-  }));
-
   el('frStart').addEventListener('click', startGame);
   el('frName').addEventListener('keydown', e => { if(e.key === 'Enter') startGame(); });
 }
@@ -2008,8 +2094,7 @@ function startGame(){
   const name = el('frName').value.trim();
   state = defaultState();
   state.character = { name: name || 'Player', avatar: pickedAvatar };
-  state.class = pickedClass;
-  genMissions();
+  crateReset();
   save();
   el('firstRun').classList.add('hidden');
   el('app').classList.remove('hidden');
@@ -2029,7 +2114,7 @@ function init(){
     setupFirstRun();
   } else {
     rollover();
-    genMissions();
+    crateReset();
     save();
     el('app').classList.remove('hidden');
     renderAll();

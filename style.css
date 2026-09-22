@@ -79,12 +79,12 @@ button{font-family:inherit;}
 
 /* ---------- rank chips ---------- */
 .rank-chip{font-size:11px;font-weight:800;letter-spacing:2px;padding:4px 10px;border-radius:6px;border:1px solid var(--line);color:var(--cyan-bright);white-space:nowrap;}
-.rank-E{color:#94a3b8;border-color:rgba(148,163,184,.4);}
-.rank-D{color:#34d399;border-color:rgba(52,211,153,.4);}
-.rank-C{color:#38bdf8;border-color:rgba(56,189,248,.4);}
-.rank-B{color:#818cf8;border-color:rgba(129,140,248,.45);}
-.rank-A{color:#c084fc;border-color:rgba(192,132,252,.5);}
-.rank-S{color:#fbbf24;border-color:rgba(251,191,36,.55);box-shadow:0 0 12px rgba(251,191,36,.25);}
+.rank-BRONZE{color:#d29a6b;border-color:rgba(210,154,107,.5);}
+.rank-SILVER{color:#cbd5e1;border-color:rgba(203,213,225,.5);}
+.rank-GOLD{color:#fbbf24;border-color:rgba(251,191,36,.55);}
+.rank-PLATINUM{color:#5eead4;border-color:rgba(94,234,212,.5);}
+.rank-DIAMOND{color:#7dd3fc;border-color:rgba(125,211,252,.55);box-shadow:0 0 10px rgba(125,211,252,.25);}
+.rank-CROWN{color:#fde68a;border-color:rgba(253,230,138,.6);box-shadow:0 0 14px rgba(251,191,36,.4);}
 
 /* ---------- player card ---------- */
 .player-card{overflow:hidden;}
@@ -575,3 +575,48 @@ body[data-theme="red"] .sb-tab.active{background:rgba(248,113,113,.08);box-shado
 body[data-theme="red"] .bar > i{background:linear-gradient(90deg,#ef4444,#fca5a5);}
 body[data-theme="red"] .pn-dot{box-shadow:0 0 10px rgba(248,113,113,.35);}
 body[data-theme="red"] .rl-cell.on{background:var(--red);border-color:var(--red);box-shadow:0 0 14px rgba(248,113,113,.5);}
+
+/* ================= v5.2 — single nav, push sidebar, crates, badges ================= */
+/* one nav only: bottom tab bar retired, hamburger drawer is THE nav */
+#tabbar{display:none !important;}
+#app{padding-bottom:34px;}
+/* desktop: drawer PUSHES content instead of covering it — page stays clickable */
+#shell{transition:padding-left .28s cubic-bezier(.4,0,.2,1);}
+@media(min-width:900px){
+  body.sb-open #shell{padding-left:232px;}
+  #sbBackdrop{display:none;}
+}
+@media(max-width:899px){
+  body.sb-open #sbBackdrop{opacity:1;pointer-events:auto;}
+}
+
+/* crates */
+.crates-row{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:12px;}
+.crate{padding:14px 8px;border:1px solid var(--line-soft);border-radius:14px;background:rgba(10,18,38,.5);
+  text-align:center;display:flex;flex-direction:column;align-items:center;gap:8px;}
+.crate-icon{font-size:34px;line-height:1;}
+.crate-name{font-size:11px;font-weight:800;letter-spacing:1px;color:var(--text);}
+.crate-goal{font-size:10px;color:var(--muted);line-height:1.4;min-height:28px;}
+.crate-reward{font-size:9px;color:var(--gold);letter-spacing:.5px;}
+.crate .bar{margin-top:4px;}
+.crate-prog{font-size:9px;color:var(--muted);margin-top:3px;}
+.crate.chosen{border-color:var(--line);box-shadow:0 0 16px rgba(56,189,248,.15);background:rgba(56,189,248,.05);}
+.crate.dim{opacity:.45;}
+.crate-status{font-size:11px;font-weight:800;color:var(--green);letter-spacing:1px;}
+.crate .btn{margin-top:auto;}
+
+/* badge collection */
+.col-badges{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
+.col-badge{display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 4px;
+  border:1px solid var(--line);border-radius:10px;background:rgba(56,189,248,.05);font-size:20px;}
+.col-badge small{font-size:8px;letter-spacing:1px;color:var(--cyan-bright);text-transform:uppercase;text-align:center;}
+.col-badge.locked{opacity:.35;border-color:var(--line-soft);font-size:16px;}
+.col-badge.locked small{color:var(--muted);}
+
+/* PUBG-style rank card */
+.rl-top{display:flex;align-items:center;gap:12px;}
+.rl-icon{font-size:34px;line-height:1;}
+.rl-main{flex:1;min-width:0;}
+.rl-name{font-size:11px;letter-spacing:2px;color:var(--muted);font-weight:700;}
+.rl-name b{font-size:16px;letter-spacing:2px;color:var(--cyan-bright);text-shadow:0 0 12px rgba(56,189,248,.6);}
+.rl-next{font-size:10px;color:var(--muted);margin-top:2px;}
