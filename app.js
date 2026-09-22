@@ -161,13 +161,15 @@ function defaultState(){
     exp:0, hp:100, gold:0, totalGold:0, totalQuests:0,
     streak:0, bestStreak:0, lastQuestDay:null,
     day: todayStr(),
+    view:'character',
     perfect:{},
     inventory:{ streakSaver:0, hpPotion:0 },
     lastBlessingDay:null,
     missions:{ day:null, list:[] },
     crates:{ day:null, tier:null, progress:{quests:0,exp:0,perfect:0}, done:false, claimed:false },
     dayExp:0,
-    collection:{ sigils: START_SIGILS.slice(), titles:[] },
+    viewModes:{ quests:'path', shop:'grid', crates:'grid' },
+    collection:{ sigils: START_SIGILS.slice(), titles:[]},
     activeTitle:null,
     dayQuests:0, bestQuestsDay:0,
     freeSupplyDay:null,
@@ -199,6 +201,7 @@ function migrate(s){
   s.inventory = Object.assign({ streakSaver:0, hpPotion:0 }, s.inventory || {});
   s.inventory.streakSaver = Math.max(0, Math.floor(Number(s.inventory.streakSaver) || 0));
   s.inventory.hpPotion = Math.max(0, Math.floor(Number(s.inventory.hpPotion) || 0));
+  if(!['character','quests','crates','log','shop','settings'].includes(s.view)) s.view = 'character';
   if(!isFinite(Number(s.bestStreak))) s.bestStreak = 0;
   s.lastBlessingDay = (s.lastBlessingDay === null || typeof s.lastBlessingDay === 'string') ? s.lastBlessingDay : null;
   if(!s.missions || typeof s.missions !== 'object') s.missions = { day:null, list:[] };
@@ -227,6 +230,10 @@ function migrate(s){
     if(!['cyan','gold','red'].includes(s.settings.theme)) s.settings.theme = 'cyan';
     if(!['path','list'].includes(s.settings.questLayout)) s.settings.questLayout = 'path';
   }
+  if(!s.viewModes || typeof s.viewModes !== 'object') s.viewModes = { quests: (s.settings.questLayout === 'list') ? 'list' : 'path', shop:'grid', crates:'grid' };
+  if(s.viewModes.quests !== 'list') s.viewModes.quests = 'path';
+  if(s.viewModes.shop !== 'list') s.viewModes.shop = 'grid';
+  if(s.viewModes.crates !== 'list') s.viewModes.crates = 'grid';
   if(s.bossKills === undefined) s.bossKills = 0;
   if(s.bossCustomName === undefined) s.bossCustomName = '';
   if(s.lastReportMonth === undefined) s.lastReportMonth = null;
@@ -259,6 +266,7 @@ function sanitize(d){
   d.inventory.hpPotion = Math.max(0, Math.floor(Number(d.inventory.hpPotion) || 0));
   d.lastBlessingDay = (d.lastBlessingDay === null || typeof d.lastBlessingDay === 'string') ? d.lastBlessingDay : null;
   d.lastQuestDay = typeof d.lastQuestDay === 'string' ? d.lastQuestDay : null;
+  if(!['character','quests','crates','log','shop','settings'].includes(d.view)) d.view = 'character';
   d.missions = { day: typeof d.missions?.day === 'string' ? d.missions.day : null, list: Array.isArray(d.missions?.list) ? d.missions.list : [] };
   d.crates = {
     day: typeof d.crates?.day === 'string' ? d.crates.day : null,
@@ -267,6 +275,10 @@ function sanitize(d){
     done:!!d.crates?.done, claimed:!!d.crates?.claimed,
   };
   d.dayExp = Math.max(0, Number(d.dayExp) || 0);
+  d.viewModes = (d.viewModes && typeof d.viewModes === 'object') ? d.viewModes : {};
+  d.viewModes.quests = d.viewModes.quests === 'list' ? 'list' : 'path';
+  d.viewModes.shop = d.viewModes.shop === 'list' ? 'list' : 'grid';
+  d.viewModes.crates = d.viewModes.crates === 'list' ? 'list' : 'grid';
   d.collection = { sigils: Array.isArray(d.collection?.sigils) ? d.collection.sigils.filter(x => typeof x === 'string') : START_SIGILS.slice(), titles: Array.isArray(d.collection?.titles) ? d.collection.titles.filter(x => typeof x === 'string') : [] };
   d.activeTitle = typeof d.activeTitle === 'string' ? d.activeTitle : null;
   d.dayQuests = Math.max(0, Number(d.dayQuests) || 0);
@@ -759,6 +771,16 @@ function renderTopbar(){
   el('tbLevel').textContent = `Lv ${level} · ${rankIcon(rankForLevel(level))}`;
   el('tbGold').textContent = `◈ ${fmt(state.gold)}`;
   el('tbStreak').textContent = `🔥 ${state.streak}`;
+  const vt = el('viewToggleBtn');
+  if(vt){
+    const tog = { quests: state.viewModes.quests, shop: state.viewModes.shop, crates: state.viewModes.crates };
+    if(tog[state.view]){
+      vt.style.display = '';
+      const next = tog[state.view] === 'list' ? (state.view === 'quests' ? 'path' : 'grid') : 'list';
+      vt.textContent = state.view === 'quests' ? (next === 'list' ? '📋' : '🗺️') : (next === 'list' ? '≣' : '▦');
+      vt.title = 'Switch layout → ' + next;
+    } else vt.style.display = 'none';
+  }
   const sbL = el('sbLevel'), sbG = el('sbGold'), sbS = el('sbStreak');
   if(sbL) sbL.textContent = `Lv ${level} · ${rankForLevel(level)}`;
   if(sbG) sbG.textContent = `◈ ${fmt(state.gold)}`;
@@ -977,7 +999,7 @@ function questPath(){
 }
 
 function renderQuests(){
-  const usePath = state.settings.questLayout === 'path';
+  const usePath = state.viewModes.quests === 'path';
   el('view-quests').innerHTML = `
     ${bossCard()}
     ${systemCard()}
@@ -1041,7 +1063,7 @@ function renderCrates(){
         <span class="time-chip">\u23F3 ${timeLeftToday()} left</span></div>
       <div class="win-body">
         <div class="gold-note">Pick <b>one</b> crate per day — it's a challenge, not a mission. The clock starts when you choose, and you cannot switch. Beat it before midnight and the crate opens.</div>
-        <div class="crates-row">${cards}</div>
+        <div class="crates-row${state.viewModes.crates === 'list' ? ' list' : ''}">${cards}</div>
         <div class="quote-box">
           <div class="quote">\u201C${esc(dailyQuote())}\u201D</div>
           <div class="quote-src">\u2014 The System, ${new Date().toLocaleDateString()}</div>
@@ -1088,6 +1110,27 @@ function renderShop(){
       <div class="log-date">${d.toLocaleDateString()}</div></div>`;
   }).join('') || '<div class="empty">Nothing redeemed yet. Earn gold, then claim what you deserve.</div>';
 
+  const supply = [
+    { icon:'\u{1F4E6}', name:'Free Supply', desc:'10\u201330 \u25C8, once per day. The System\'s daily gift.',
+      b1:{t: state.freeSupplyDay === todayStr() ? 'Tomorrow' : 'Claim', d: state.freeSupplyDay === todayStr()}, id:'free' },
+    { icon:'\u{1F381}', name:'Mystery Chest', desc:'Random drop: gold \u00B7 EXP \u00B7 potion \u00B7 saver \u00B7 new title.',
+      b1:{t: state.gold >= 60 ? 'Open \u00B7 60' : '60 \u25C8', d: state.gold < 60}, id:'chest' },
+    { icon:'\u{1F9CA}', name:'Streak Saver', desc:'Miss a day? Your streak FREEZES instead of breaking. Owned \u00D7' + state.inventory.streakSaver + '.',
+      b1:{t: state.gold >= 150 ? 'Buy \u00B7 150' : '150 \u25C8', d: state.gold < 150}, id:'saver' },
+    { icon:'\u{1F9EA}', name:'HP Potion', desc:'Heals 50 HP. For when the System hurts you. Owned \u00D7' + state.inventory.hpPotion + '.',
+      b1:{t: state.gold >= 100 ? 'Buy \u00B7 100' : '100 \u25C8', d: state.gold < 100}, id:'potion',
+      b2:{t:'Drink', d: state.inventory.hpPotion <= 0}, id2:'drink' },
+  ];
+  const cardBtns = it =>
+    '<button class="btn small" data-shop="' + it.id + '"' + (it.b1.d ? ' disabled' : '') + '>' + it.b1.t + '</button>' +
+    (it.b2 ? '<button class="btn small ghost" data-shop="' + it.id2 + '"' + (it.b2.d ? ' disabled' : '') + '>' + it.b2.t + '</button>' : '');
+  const supplyHtml = state.viewModes.shop === 'list'
+    ? supply.map(it => '<div class="shop-row"><div class="sri">' + it.icon + '</div>' +
+        '<div class="srm"><b>' + esc(it.name) + '</b><small>' + esc(it.desc) + '</small></div>' +
+        '<div class="sc-actions">' + cardBtns(it) + '</div></div>').join('')
+    : supply.map(it => '<div class="shop-card"><div class="sc-icon">' + it.icon + '</div>' +
+        '<div class="sc-name">' + esc(it.name) + '</div><div class="sc-desc">' + esc(it.desc) + '</div>' +
+        '<div class="sc-actions">' + cardBtns(it) + '</div></div>').join('');
   el('view-shop').innerHTML = `
     <div class="sys-window">
       <div class="win-bar"><span class="win-title">Reward Market</span>
@@ -1098,51 +1141,12 @@ function renderShop(){
       </div>
     </div>
     <div class="sys-window" style="margin-top:14px">
-      <div class="win-bar"><span class="win-title">Power-ups</span><span class="win-sub">🧊 ×${state.inventory.streakSaver} · 🧪 ×${state.inventory.hpPotion}</span></div>
+      <div class="win-bar"><span class="win-title">Supply Drop</span><span class="win-sub">chests & power-ups \u00B7 use the layout button up top</span></div>
       <div class="win-body" style="padding-top:8px">
-        <div class="powerup">
-          <div class="r-icon">🧊</div>
-          <div class="q-meta">
-            <div class="q-name">Streak Saver</div>
-            <div class="q-sub">Miss a day? Your streak FREEZES instead of breaking. Auto-activates. That day doesn't count.</div>
-          </div>
-          <button class="buy-btn" id="buySaverBtn" ${state.gold < 150 ? 'disabled' : ''}>${state.gold >= 150 ? 'Buy · 150' : '150 ◈'}</button>
-        </div>
-        <div class="powerup">
-          <div class="r-icon">🧪</div>
-          <div class="q-meta">
-            <div class="q-name">HP Potion</div>
-            <div class="q-sub">Heals 50 HP. For when the System hurts you.</div>
-          </div>
-          <div style="display:flex;gap:6px;flex:0 0 auto">
-            <button class="buy-btn" id="buyPotionBtn" ${state.gold < 100 ? 'disabled' : ''}>${state.gold >= 100 ? 'Buy · 100' : '100 ◈'}</button>
-            <button class="btn small" id="drinkPotionBtn" ${state.inventory.hpPotion <= 0 ? 'disabled' : ''} style="min-width:60px">Drink</button>
-          </div>
-        </div>
+        <div class="${state.viewModes.shop === 'list' ? 'shop-list' : 'shop-grid-cards'}">${supplyHtml}</div>
       </div>
     </div>
-    <div class="sys-window" style="margin-top:14px">
-      <div class="win-bar"><span class="win-title">Chests</span><span class="win-sub">random drops</span></div>
-      <div class="win-body" style="padding-top:8px">
-        <div class="powerup">
-          <div class="r-icon">\u{1F381}</div>
-          <div class="q-meta">
-            <div class="q-name">Free Supply</div>
-            <div class="q-sub">10\u201330 \u25C8, once per day. The System's daily gift.</div>
-          </div>
-          <button class="buy-btn" id="freeSupplyBtn" ${state.freeSupplyDay === todayStr() ? 'disabled' : ''}>${state.freeSupplyDay === todayStr() ? 'Tomorrow' : 'Claim'}</button>
-        </div>
-        <div class="powerup">
-          <div class="r-icon">\u{1F4E6}</div>
-          <div class="q-meta">
-            <div class="q-name">Mystery Chest</div>
-            <div class="q-sub">Random drop: gold \u00B7 EXP \u00B7 potion \u00B7 saver \u00B7 new sigil \u00B7 new title. Full collection refunds 50 \u25C8.</div>
-          </div>
-          <button class="buy-btn" id="chestBtn" ${state.gold < 60 ? 'disabled' : ''}>${state.gold >= 60 ? 'Open \u00B7 60' : '60 \u25C8'}</button>
-        </div>
-      </div>
-    </div>
-    <div class="sys-window" style="margin-top:14px">
+        <div class="sys-window" style="margin-top:14px">
       <div class="win-bar"><span class="win-title">Badge Collection</span><span class="win-sub">${state.badges.length}/${BADGES.length} badges \u00B7 ${state.collection.titles.length} titles</span></div>
       <div class="win-body" style="padding-top:8px">
         <div class="col-badges">${BADGES.map(b => {
@@ -1168,22 +1172,20 @@ function renderShop(){
   document.querySelectorAll('.q-meta[data-r]').forEach(m =>
     m.addEventListener('click', () => openRewardEditor(m.dataset.r)));
   el('addRewardBtn').addEventListener('click', () => openRewardEditor(null));
-  const bs = el('buySaverBtn');
-  if(bs) bs.addEventListener('click', () => buyPowerup('streakSaver', 150));
-  const bp = el('buyPotionBtn');
-  if(bp) bp.addEventListener('click', () => buyPowerup('hpPotion', 100));
-  const dp = el('drinkPotionBtn');
-  if(dp) dp.addEventListener('click', () => {
-    if(state.inventory.hpPotion <= 0) return;
-    state.inventory.hpPotion--;
-    state.hp = Math.min(maxHp(), state.hp + 50);
-    save(); renderAll(); sfxCheckIn();
-    toast('🧪 +50 HP. The System notices.');
-  });
-  const fsb = el('freeSupplyBtn');
-  if(fsb) fsb.addEventListener('click', () => openChest(true));
-  const cb = el('chestBtn');
-  if(cb) cb.addEventListener('click', () => openChest(false));
+  document.querySelectorAll('#view-shop [data-shop]').forEach(b => b.addEventListener('click', () => {
+    const a = b.dataset.shop;
+    if(a === 'free') openChest(true);
+    else if(a === 'chest') openChest(false);
+    else if(a === 'saver') buyPowerup('streakSaver', 150);
+    else if(a === 'potion') buyPowerup('hpPotion', 100);
+    else if(a === 'drink'){
+      if(state.inventory.hpPotion <= 0) return;
+      state.inventory.hpPotion--;
+      state.hp = Math.min(maxHp(), state.hp + 50);
+      save(); renderAll(); sfxCheckIn();
+      toast('🧪 +50 HP. The System notices.');
+    }
+  }));
   document.querySelectorAll('.col-title').forEach(b => b.addEventListener('click', () => {
     state.activeTitle = state.activeTitle === b.dataset.t ? null : b.dataset.t;
     save(); renderAll(); toast(state.activeTitle ? 'Title equipped: ' + state.activeTitle : 'Title removed.');
@@ -1213,12 +1215,6 @@ function renderSettings(){
         <div class="set-row"><span>THEME</span>
           <div class="theme-row">
             ${['cyan','gold','red'].map(t => `<button class="theme-dot ${t} ${s.theme === t ? 'sel' : ''}" data-theme="${t}" title="${t === 'cyan' ? 'System Cyan' : t === 'gold' ? 'Monarch Gold' : 'Shadow Red'}"></button>`).join('')}
-          </div>
-        </div>
-        <div class="set-row"><span>QUEST VIEW</span>
-          <div class="seg">
-            <button class="seg-b ${s.questLayout === 'path' ? 'on' : ''}" data-layout="path">Path</button>
-            <button class="seg-b ${s.questLayout === 'list' ? 'on' : ''}" data-layout="list">List</button>
           </div>
         </div>
       </div>
@@ -1277,7 +1273,10 @@ function renderSettings(){
         ${setRow('KILL BONUS (gold)', 'bossKillBonus', 0, 200, 10, s.bossKillBonus)}
       </div>
 
-      <div class=""checkbox" id="setRandom" data-set="randomQuests" ${s.randomQuests ? 'checked' : ''}><i></i></label><b></b>
+      <div class="set-sec">
+        <div class="set-title">Quests</div>
+        <div class="set-row"><span>RANDOM QUESTS</span>
+          <label class="switch"><input type="checkbox" id="setRandom" data-set="randomQuests" ${s.randomQuests ? 'checked' : ''}><i></i></label><b></b>
         </div>
       </div>
 
@@ -1388,10 +1387,6 @@ create policy "open personal sync"
   document.querySelectorAll('.theme-dot').forEach(d => d.addEventListener('click', () => {
     state.settings.theme = d.dataset.theme;
     save(); applyTheme(); renderAll(); toast('Theme set.');
-  }));
-  document.querySelectorAll('.seg-b').forEach(b => b.addEventListener('click', () => {
-    state.settings.questLayout = b.dataset.layout;
-    save(); renderAll();
   }));
 
   el('syncUrl').addEventListener('change', e => { state.settings.sync.url = e.target.value.trim(); save(); });
@@ -2050,11 +2045,20 @@ function sfxBadge(){ tone(1200, .15, { gain:.08, type:'triangle' }); }
 
 /* ---------------- tabs ---------------- */
 
+function toggleViewMode(){
+  const v = state.view;
+  const vm = state.viewModes;
+  if(!vm || vm[v] === undefined) return;
+  vm[v] = vm[v] === 'list' ? (v === 'quests' ? 'path' : 'grid') : 'list';
+  save(); renderAll();
+}
+
 function switchTab(tab){
   el('tabbar').querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
   document.querySelectorAll('#sidebar .sb-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
   ['character','quests','crates','log','shop','settings'].forEach(v =>
     el('view-' + v).classList.toggle('hidden', v !== tab));
+  state.view = tab;
   if(window.innerWidth < 900) document.body.classList.remove('sb-open');
   renderAll();
 }
@@ -2127,6 +2131,8 @@ function init(){
     t.addEventListener('click', () => switchTab(t.dataset.tab)));
   const mb = el('menuBtn');
   if(mb) mb.addEventListener('click', () => document.body.classList.toggle('sb-open'));
+  const vtb = el('viewToggleBtn');
+  if(vtb) vtb.addEventListener('click', toggleViewMode);
   const bd = el('sbBackdrop');
   if(bd) bd.addEventListener('click', () => document.body.classList.remove('sb-open'));
   if(window.matchMedia && window.matchMedia('(min-width:900px)').matches) document.body.classList.add('sb-open');
