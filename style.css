@@ -649,3 +649,17 @@ body[data-theme="red"] .rl-cell.on{background:var(--red);border-color:var(--red)
 .crates-row.list .crate{flex-direction:row;text-align:left;gap:14px;align-items:center;}
 .crates-row.list .crate-goal{min-height:0;}
 .crates-row.list .crate .btn{margin-top:0;}
+
+/* v5.3.2 — quest path as a 3-across card grid (Coddly-style) */
+.qgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:10px;}
+@media(max-width:1000px){.qgrid{grid-template-columns:repeat(2,1fr);}}
+.qg-card{display:flex;flex-direction:column;gap:5px;padding:10px 10px 11px;border:1px solid var(--line-soft);
+  border-radius:12px;background:rgba(10,18,38,.5);cursor:pointer;transition:border-color .15s, opacity .15s;}
+.qg-card:hover{border-color:var(--line);}
+.qg-card.done{border-color:rgba(52,211,153,.3);opacity:.6;}
+.qg-top{display:flex;align-items:center;gap:7px;min-width:0;}
+.qg-ic{font-size:17px;line-height:1;flex:0 0 auto;}
+.qg-name{font-size:12.5px;font-weight:700;line-height:1.25;}
+.qg-name small{color:var(--muted);font-weight:600;font-size:10px;}
+.qg-sub{font-size:10px;color:var(--muted);letter-spacing:.5px;}
+.qg-btn{margin-top:6px;min-width:0;width:100%;padding:7px 8px;font-size:10px;}

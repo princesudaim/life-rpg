@@ -976,18 +976,15 @@ function questPath(){
     const done = group.filter(q => q.timesDone >= q.dailyLimit).length;
     const nodes = group.map(q => {
       const isDone = q.timesDone >= q.dailyLimit;
-      return `<div class="path-node ${isDone ? 'done' : ''}">
-        <div class="pn-track"><span class="pn-dot">${isDone ? '\u2713' : esc(q.icon)}</span></div>
-        <div class="pn-card" data-q="${q.id}">
-          <div class="pn-name"><span class="pn-ic">${esc(q.icon)}</span>${esc(q.name)}${q.dailyLimit > 1 ? ` <small>(${q.timesDone}/${q.dailyLimit})</small>` : ''}</div>
-          <div class="pn-sub">+${q.exp} EXP \u00B7 +${q.gold} \u25C8</div>
-          <button class="check-btn" data-q="${q.id}" ${isDone ? 'disabled' : ''}>${isDone ? 'Done' : 'Check In'}</button>
-        </div>
+      return `<div class="qg-card ${isDone ? 'done' : ''}" data-q="${q.id}">
+        <div class="qg-top"><span class="qg-ic">${esc(q.icon)}</span><span class="qg-name">${esc(q.name)}${q.dailyLimit > 1 ? ` <small>(${q.timesDone}/${q.dailyLimit})</small>` : ''}</span></div>
+        <div class="qg-sub">+${q.exp} EXP \u00B7 +${q.gold} \u25C8</div>
+        <button class="check-btn qg-btn" data-q="${q.id}" ${isDone ? 'disabled' : ''}>${isDone ? '\u2713 Done' : 'Check In'}</button>
       </div>`;
     }).join('');
     return `<div class="path-section">
       <div class="path-head"><span class="path-cat">${ic} ${c}</span><span class="g-count">${done}/${group.length}</span></div>
-      <div class="path">${nodes}</div>
+      <div class="qgrid">${nodes}</div>
     </div>`;
   }).join('');
   const others = state.quests.filter(q => q.freq !== 'daily');
@@ -1018,7 +1015,7 @@ function renderQuests(){
     b.addEventListener('click', e => checkIn(b.dataset.q, e)));
   document.querySelectorAll('.q-meta[data-q]').forEach(m =>
     m.addEventListener('click', () => openQuestEditor(m.dataset.q)));
-  document.querySelectorAll('.pn-card[data-q]').forEach(m =>
+  document.querySelectorAll('.qg-card[data-q]').forEach(m =>
     m.addEventListener('click', e => {
       if(e.target.closest('.check-btn')) return;
       openQuestEditor(m.dataset.q);
