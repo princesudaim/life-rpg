@@ -26,7 +26,10 @@
           <input id="frName" maxlength="24" placeholder="Enter your name" autocomplete="off">
         </label>
         <label class="field"><span>AVATAR SIGIL</span></label>
+        <div id="frAvatarPrev" class="fr-avatar-prev">⚔️</div>
         <div id="frAvatars" class="avatar-pick"></div>
+        <div class="upload-row"><button class="mini-btn" id="frUploadBtn" type="button">📷 Upload your own photo instead</button></div>
+        <input type="file" id="frAvatarFile" accept="image/*" class="file-hidden">
         <label class="field"><span>CLASS</span></label>
         <div id="frClasses" class="class-pick"></div>
         <button id="frStart" class="btn primary big">BEGIN — I ACCEPT THE SYSTEM</button>
@@ -40,6 +43,7 @@
       <div class="chip" id="tbLevel">Lv 1</div>
       <div class="chip gold" id="tbGold">◈ 0</div>
       <div class="chip fire" id="tbStreak">🔥 0</div>
+      <button class="chip" id="tbRules" title="Rules Book">📖</button>
     </header>
 
     <section id="view-character" class="view"></section>
@@ -135,6 +139,27 @@
         </label>
         <button id="bmSave" class="btn primary big">Set Boss Task</button>
       </div>
+    </div>
+  </div>
+
+  <!-- DAILY BLESSING modal -->
+  <div id="blessingModal" class="overlay hidden">
+    <div class="sys-window narrow">
+      <div class="win-bar"><span class="win-title">Daily Blessing</span></div>
+      <div class="win-body" style="text-align:center">
+        <div style="font-size:46px">🎁</div>
+        <p class="hint" style="margin:10px 0">The System greets you, Player. You opened your game for a new day.</p>
+        <div class="fx-sub">CLAIM <b id="blessingAmt">+10 ◈</b></div>
+        <button class="btn primary big" id="blessingClaim" style="margin-top:12px">Claim Blessing</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- RULES BOOK modal -->
+  <div id="rulesModal" class="overlay hidden">
+    <div class="sys-window" style="max-width:520px;width:100%;max-height:85vh;display:flex;flex-direction:column">
+      <div class="win-bar"><span class="win-title">📖 The System's Laws</span><button class="win-x" id="rulesClose">✕</button></div>
+      <div class="win-body" id="rulesBody" style="overflow-y:auto;max-height:calc(85vh - 60px)"></div>
     </div>
   </div>
 

@@ -8,13 +8,17 @@
 
 const KEY = 'liferpg_v1';
 
-const AVATARS = ['⚔️','🛡️','🗡️','','🔥','️','⚡','','👁️','💀','🦅','🐺'];
+const AVATARS = ['⚔️','🗡️','🌙','👁️','🔥','⚡','💀','🐺','🦅','🌊','🎯','🛡️'];
 
 const CLASSES = {
-  warrior:   { name:'Warrior',   icon:'⚔️', stat:'STR', desc:'+25% EXP from Body quests' },
-  mage:      { name:'Mage',      icon:'🔮', stat:'INT', desc:'+25% EXP from Mind quests' },
-  guardian:  { name:'Guardian',  icon:'🛡️', stat:'VIT', desc:'+25% EXP from Discipline quests' },
-  trickster: { name:'Trickster', icon:'🃏', stat:'CHA', desc:'+25% EXP from Social quests' },
+  warrior:   { name:'Warrior',   icon:'⚔️', stat:'STR', conStat:'INT',
+               pro:'+25% EXP from Body quests', con:'-15% EXP from Mind quests' },
+  mage:      { name:'Mage',      icon:'🔮', stat:'INT', conStat:'STR',
+               pro:'+25% EXP from Mind quests', con:'-15% EXP from Body quests' },
+  guardian:  { name:'Guardian',  icon:'🛡️', stat:'VIT', conStat:'CHA',
+               pro:'Half HP penalty when streak breaks', con:'-15% EXP from Social quests' },
+  trickster: { name:'Trickster', icon:'🃏', stat:'CHA', conStat:'VIT',
+               pro:'+25% EXP from Social quests', con:'-15% EXP from Discipline quests' },
 };
 const CAT_STAT = { Body:'STR', Mind:'INT', Discipline:'VIT', Social:'CHA' };
 const statForCategory = c => CAT_STAT[c] || null;
@@ -123,8 +127,11 @@ function defaultState(){
     class:'warrior',
     stats: { STR:0, INT:0, VIT:0, CHA:0 },
     exp:0, hp:100, gold:0, totalGold:0, totalQuests:0,
-    streak:0, lastQuestDay:null,
+    streak:0, bestStreak:0, lastQuestDay:null,
+    day: todayStr(),
     perfect:{},
+    inventory:{ streakSaver:0, hpPotion:0 },
+    lastBlessingDay:null,
     quests: DEFAULT_QUESTS.map(q => ({ ...q, timesDone:0, resetKey:periodFor(q.freq) })),
     rewards: DEFAULT_REWARDS,
     bought:[], log:[], badges:[],
@@ -150,6 +157,11 @@ function migrate(s){
   s.stats = Object.assign({ STR:0, INT:0, VIT:0, CHA:0 }, s.stats || {});
   s.perfect = Object.assign({}, s.perfect || {});
   if(!s.class) s.class = 'warrior';
+  s.inventory = Object.assign({ streakSaver:0, hpPotion:0 }, s.inventory || {});
+  s.inventory.streakSaver = Math.max(0, Math.floor(Number(s.inventory.streakSaver) || 0));
+  s.inventory.hpPotion = Math.max(0, Math.floor(Number(s.inventory.hpPotion) || 0));
+  if(!isFinite(Number(s.bestStreak))) s.bestStreak = 0;
+  s.lastBlessingDay = (s.lastBlessingDay === null || typeof s.lastBlessingDay === 'string') ? s.lastBlessingDay : null;
   if(s.bossKills === undefined) s.bossKills = 0;
   if(s.bossCustomName === undefined) s.bossCustomName = '';
   if(s.lastReportMonth === undefined) s.lastReportMonth = null;
@@ -176,6 +188,11 @@ function sanitize(d){
   d.totalQuests = Math.max(0, Number(d.totalQuests) || 0);
   d.streak = Math.max(0, Number(d.streak) || 0);
   d.bossKills = Math.max(0, Number(d.bossKills) || 0);
+  d.bestStreak = Math.max(0, Number(d.bestStreak) || 0);
+  d.inventory = Object.assign({ streakSaver:0, hpPotion:0 }, d.inventory || {});
+  d.inventory.streakSaver = Math.max(0, Math.floor(Number(d.inventory.streakSaver) || 0));
+  d.inventory.hpPotion = Math.max(0, Math.floor(Number(d.inventory.hpPotion) || 0));
+  d.lastBlessingDay = (d.lastBlessingDay === null || typeof d.lastBlessingDay === 'string') ? d.lastBlessingDay : null;
   d.lastQuestDay = typeof d.lastQuestDay === 'string' ? d.lastQuestDay : null;
   if(typeof d.day !== 'string') d.day = todayStr();
   d.lastReportMonth = (d.lastReportMonth === null || typeof d.lastReportMonth === 'string') ? d.lastReportMonth : null;
@@ -240,13 +257,14 @@ function sanitize(d){
 }
 
 function load(){
+  let raw;
   try{
-    const raw = localStorage.getItem(KEY);
+    raw = localStorage.getItem(KEY);
     if(!raw) return null;
     return sanitize(migrate(JSON.parse(raw)));
   }catch(e){
     // save is unparseable — park it aside, start fresh (a good import can still fix everything)
-    try{ localStorage.setItem(KEY + '_corrupt', raw); }catch(e2){}
+    try{ if(raw) localStorage.setItem(KEY + '_corrupt', raw); }catch(e2){}
     return null;
   }
 }
@@ -331,9 +349,16 @@ function rollover(){
   const t = todayStr();
   if(state.day !== t){
     if(state.lastQuestDay !== yesterdayStr()){
-      if(state.streak > 1) toast('💤 Streak broken. The System deducts ' + state.settings.hpPenalty + ' HP.');
-      state.streak = 0;
-      state.hp = Math.max(0, state.hp - state.settings.hpPenalty);
+      const pen = Math.round(state.settings.hpPenalty * (state.class === 'guardian' ? 0.5 : 1));
+      if(state.inventory.streakSaver > 0){
+        state.inventory.streakSaver--;
+        state.lastQuestDay = yesterdayStr();
+        toast('🧊 Streak Saver activated — your streak is frozen. That day does not count.');
+      } else {
+        if(state.streak > 1) toast('💤 Streak broken. The System deducts ' + pen + ' HP.');
+        state.streak = 0;
+        state.hp = Math.max(0, state.hp - pen);
+      }
     }
     state.day = t;
     changed = true;
@@ -360,6 +385,7 @@ function touchStreak(){
   const t = todayStr(), y = yesterdayStr();
   if(state.lastQuestDay === t) return;
   state.streak = (state.lastQuestDay === y) ? state.streak + 1 : 1;
+  state.bestStreak = Math.max(state.bestStreak || 0, state.streak);
   state.lastQuestDay = t;
 }
 
@@ -387,7 +413,7 @@ function applyReward({ exp, gold = 0, name, icon, statKey = null, ev = null }){
 
   if(ev){
     floatText('+' + exp + ' EXP', ev.clientX, ev.clientY);
-    if(gold > 0) floatText('+' + gold + ' ◈', ev.clientX, ev.clientY + 24, true);
+    if(gold > 0) floatText('+' + gold + ' ◈', ev.clientX, ev.clientY + 24, 'gold');
   }
   sfxCheckIn();
 
@@ -413,9 +439,21 @@ function checkIn(qid, ev){
   let exp = q.exp;
   const cat = statForCategory(q.category);
   const cls = CLASSES[state.class];
-  if(cls && cat && cls.stat === cat) exp = Math.round(q.exp * 1.25);
+  if(cls && cat){
+    if(cls.stat === cat) exp = Math.round(q.exp * 1.25);
+    else if(cls.conStat === cat) exp = Math.max(1, Math.round(q.exp * 0.85));
+  }
   applyReward({ exp, gold:q.gold, name:q.name, icon:q.icon, statKey:cat, ev });
   checkPerfects(q.freq);
+  // variable reward: the System occasionally smiles (15% luck)
+  if(Math.random() < 0.15){
+    const bonus = 5 + Math.floor(Math.random() * 3) * Math.max(1, q.gold);
+    state.gold += bonus; state.totalGold += bonus;
+    state.log.unshift({ ts:Date.now(), name:'Lucky find — the System smiles', icon:'🍀', exp:0, gold:bonus });
+    save(); renderAll();
+    if(ev) floatText('🍀 LUCKY +' + bonus + ' ◈', ev.clientX, ev.clientY - 50, 'lucky');
+    sfxBadge();
+  }
 }
 
 function bossHit(ev){
@@ -466,7 +504,7 @@ function buyReward(id, ev){
   save();
   renderAll();
   sfxCheckIn();
-  if(ev) floatText('-' + r.cost + ' ◈', ev.clientX, ev.clientY, true);
+  if(ev) floatText('-' + r.cost + ' ◈', ev.clientX, ev.clientY, 'gold');
   toast('🎁 Redeemed: ' + r.name + '. Go enjoy it — you earned it.');
 }
 
@@ -571,17 +609,26 @@ function renderCharacter(){
   const hpPct = Math.max(0, Math.min(100, Math.round(state.hp / mh * 100)));
   const badges = BADGES.filter(b => state.badges.includes(b.id))
     .map(b => `<div class="badge" title="${esc(b.desc)}">${b.icon}<span>${esc(b.name)}</span></div>`).join('');
+  const av = /^data:/.test(state.character.avatar)
+    ? `<img src="${state.character.avatar}" alt="avatar">`
+    : esc(state.character.avatar);
+  const saverNote = state.inventory.streakSaver > 0 ? ` · 🧊 ×${state.inventory.streakSaver} auto-saver ready` : '';
   el('view-character').innerHTML = `
     <div class="sys-window player-card">
       <div class="win-bar"><span class="win-title">Player</span><span class="rank-chip rank-${rank}">${rank} RANK</span></div>
       <div class="win-body">
-        <div class="p-row">
-          <div class="p-avatar">${esc(state.character.avatar)}</div>
+        <div class="p-top">
+          <div class="p-avatar">${av}</div>
           <div style="flex:1;min-width:0">
             <div class="p-name">${esc(state.character.name)}</div>
             <div class="p-title">${esc(titleForLevel(level))} · ${cls.icon} ${cls.name}</div>
-            <div class="p-level">LEVEL<b>${level}</b></div>
+            <div class="p-classpro"><span class="pro">▲ ${esc(cls.pro)}</span> &nbsp;·&nbsp; <span class="con">▼ ${esc(cls.con)}</span></div>
           </div>
+          <div class="p-lvl"><b>${level}</b><span>LEVEL</span></div>
+        </div>
+        <div class="streak-row">
+          <div class="streak-big">🔥 ${state.streak}<small>DAY STREAK · BEST ${state.bestStreak || 0}</small></div>
+          <div class="streak-note">Do at least 1 quest today to keep the fire alive.${saverNote}</div>
         </div>
         <div class="bar-block">
           <div class="bar-label"><span>Experience</span><span>${fmt(into)} / ${fmt(needed)}</span></div>
@@ -598,12 +645,14 @@ function renderCharacter(){
           <span class="st-cha">CHA ${state.stats.CHA}</span>
           <span class="st-gold">◈ ${fmt(state.gold)}</span>
         </div>
-        <div class="share-row">
-          <button class="btn" id="shareCardBtn">📸 Share</button>
-          <button class="btn" id="saveCardBtn">⬇ Save</button>
-          <button class="btn" id="reportBtn">📊 Report</button>
+        <div class="p-foot-row">
+          <div class="p-foot">⭐ ${fmt(state.totalQuests)} quests · 🏅 ${state.badges.length} · 🐉 ${state.bossKills || 0} · since ${new Date(state.created).toLocaleDateString()}</div>
+          <div class="p-actions">
+            <button class="btn" id="shareCardBtn" title="Share card image">📸</button>
+            <button class="btn" id="saveCardBtn" title="Save card image">⬇</button>
+            <button class="btn" id="reportBtn" title="Month report">📊</button>
+          </div>
         </div>
-        <div class="p-foot">⭐ ${fmt(state.totalQuests)} quests &nbsp;·&nbsp; 🏅 ${state.badges.length} badges &nbsp;·&nbsp; 🐉 ${state.bossKills || 0} bosses &nbsp;·&nbsp; since ${new Date(state.created).toLocaleDateString()}</div>
         ${badges ? `<div class="badges">${badges}</div>` : ''}
         <div class="p-quote">"Only you level up." — The System</div>
       </div>
@@ -613,6 +662,16 @@ function renderCharacter(){
   el('reportBtn').addEventListener('click', () => showReport(monthStrNow(), 'This Month So Far'));
 }
 
+function daysLeft(freq){
+  const d = new Date();
+  if(freq === 'weekly'){
+    const day = (d.getDay() + 6) % 7; // 0 = Monday
+    return 7 - day;
+  }
+  const last = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+  return last - d.getDate();
+}
+
 function questCard(q){
   const done = q.timesDone >= q.dailyLimit;
   return `
@@ -620,7 +679,7 @@ function questCard(q){
     <div class="q-icon">${esc(q.icon || '⭐')}</div>
     <div class="q-meta" data-q="${q.id}">
       <div class="q-name">${esc(q.name)}</div>
-      <div class="q-sub">+${q.exp} EXP · +${q.gold} ◈${q.dailyLimit > 1 ? ' · ' + q.timesDone + '/' + q.dailyLimit : ''}</div>
+      <div class="q-sub">+${q.exp} EXP · +${q.gold} ◈${q.dailyLimit > 1 ? ' · ' + q.timesDone + '/' + q.dailyLimit : ''}${q.freq !== 'daily' ? ` · <span class="q-days">${daysLeft(q.freq)}d left</span>` : ''}</div>
     </div>
     <button class="check-btn" data-q="${q.id}" ${done ? 'disabled' : ''}>${done ? '✓' : 'Check In'}</button>
   </div>`;
@@ -710,7 +769,7 @@ function renderLog(){
       ' · ' + d.toLocaleTimeString(undefined, { hour:'2-digit', minute:'2-digit' });
     return `<div class="log-entry"><span class="le-icon">${esc(l.icon || '⭐')}</span>
       <div><div class="le-name">${esc(l.name)}</div><div class="log-date">${when}</div></div>
-      <span class="le-exp">+${l.exp} EXP</span></div>`;
+      <span class="le-exp">${l.exp > 0 ? '+' + l.exp + ' EXP' : '+' + l.gold + ' ◈'}</span></div>`;
   }).join('') || '<div class="empty">No deeds recorded yet. Go complete something, Player.</div>';
   el('view-log').innerHTML = `
     <div class="sys-window">
@@ -749,6 +808,30 @@ function renderShop(){
       </div>
     </div>
     <div class="sys-window" style="margin-top:14px">
+      <div class="win-bar"><span class="win-title">Power-ups</span><span class="win-sub">🧊 ×${state.inventory.streakSaver} · 🧪 ×${state.inventory.hpPotion}</span></div>
+      <div class="win-body" style="padding-top:8px">
+        <div class="powerup">
+          <div class="r-icon">🧊</div>
+          <div class="q-meta">
+            <div class="q-name">Streak Saver</div>
+            <div class="q-sub">Miss a day? Your streak FREEZES instead of breaking. Auto-activates. That day doesn't count.</div>
+          </div>
+          <button class="buy-btn" id="buySaverBtn" ${state.gold < 150 ? 'disabled' : ''}>${state.gold >= 150 ? 'Buy · 150' : '150 ◈'}</button>
+        </div>
+        <div class="powerup">
+          <div class="r-icon">🧪</div>
+          <div class="q-meta">
+            <div class="q-name">HP Potion</div>
+            <div class="q-sub">Heals 50 HP. For when the System hurts you.</div>
+          </div>
+          <div style="display:flex;gap:6px;flex:0 0 auto">
+            <button class="buy-btn" id="buyPotionBtn" ${state.gold < 100 ? 'disabled' : ''}>${state.gold >= 100 ? 'Buy · 100' : '100 ◈'}</button>
+            <button class="btn small" id="drinkPotionBtn" ${state.inventory.hpPotion <= 0 ? 'disabled' : ''} style="min-width:60px">Drink</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="sys-window" style="margin-top:14px">
       <div class="win-bar"><span class="win-title">Redeemed</span></div>
       <div class="win-body" style="padding-top:6px">${bought}</div>
     </div>`;
@@ -758,6 +841,18 @@ function renderShop(){
   document.querySelectorAll('.q-meta[data-r]').forEach(m =>
     m.addEventListener('click', () => openRewardEditor(m.dataset.r)));
   el('addRewardBtn').addEventListener('click', () => openRewardEditor(null));
+  const bs = el('buySaverBtn');
+  if(bs) bs.addEventListener('click', () => buyPowerup('streakSaver', 150));
+  const bp = el('buyPotionBtn');
+  if(bp) bp.addEventListener('click', () => buyPowerup('hpPotion', 100));
+  const dp = el('drinkPotionBtn');
+  if(dp) dp.addEventListener('click', () => {
+    if(state.inventory.hpPotion <= 0) return;
+    state.inventory.hpPotion--;
+    state.hp = Math.min(maxHp(), state.hp + 50);
+    save(); renderAll(); sfxCheckIn();
+    toast('🧪 +50 HP. The System notices.');
+  });
 }
 
 /* ---------------- settings (Game Master) ---------------- */
@@ -776,14 +871,16 @@ function renderSettings(){
     <div class="win-bar"><span class="win-title">Game Master</span><span class="win-sub">every rule is yours</span></div>
     <div class="win-body">
 
+      <div class="btnrow" style="margin-top:0"><button class="btn primary" id="openRulesBtn">📖 Read the System's Laws (Rules Book)</button></div>
+
       <div class="set-sec">
         <div class="set-title">Character</div>
         <label class="field"><span>PLAYER NAME</span>
           <input id="setName" maxlength="24" value="${esc(state.character.name)}" autocomplete="off">
         </label>
         <div class="row2">
-          <label class="field"><span>AVATAR</span>
-            <input id="setAvatar" maxlength="4" value="${esc(state.character.avatar)}" autocomplete="off">
+          <label class="field"><span>SIGIL (EMOJI AVATAR)</span>
+            <input id="setAvatar" maxlength="4" value="${/^data:/.test(state.character.avatar) ? '' : esc(state.character.avatar)}" placeholder="pick an emoji" autocomplete="off">
           </label>
           <label class="field"><span>CLASS</span>
             <select id="setClass">${Object.entries(CLASSES).map(([k, c]) =>
@@ -791,6 +888,11 @@ function renderSettings(){
             </select>
           </label>
         </div>
+        <div class="row2">
+          <button class="btn" id="uploadAvBtn">📷 Upload photo avatar</button>
+          <button class="btn" id="removeAvBtn" ${/^data:/.test(state.character.avatar) ? '' : 'disabled'}>↺ Back to sigil</button>
+        </div>
+        <input type="file" id="setAvatarFile" accept="image/*" class="file-hidden">
         <div class="set-row"><span>SOUND FX</span>
           <label class="switch"><input type="checkbox" id="setSound" data-set="sound" ${s.sound ? 'checked' : ''}><i></i></label><b></b>
         </div>
@@ -915,10 +1017,29 @@ create policy "open personal sync"
 
   el('saveChar').addEventListener('click', () => {
     state.character.name = el('setName').value.trim() || 'Player';
-    state.character.avatar = el('setAvatar').value.trim() || '👁️';
+    const av = el('setAvatar').value.trim();
+    if(av) state.character.avatar = av;
     state.class = el('setClass').value;
     save(); renderAll(); toast('Character updated.');
   });
+  const upBtn = el('uploadAvBtn');
+  if(upBtn) upBtn.addEventListener('click', () => el('setAvatarFile').click());
+  const upFile = el('setAvatarFile');
+  if(upFile) upFile.addEventListener('change', e => {
+    const f = e.target.files && e.target.files[0];
+    if(f) pickAvatarImage(f, img => {
+      state.character.avatar = img;
+      save(); renderAll(); toast('Avatar updated. Looking sharp, Player.');
+    });
+    upFile.value = '';
+  });
+  const rmBtn = el('removeAvBtn');
+  if(rmBtn) rmBtn.addEventListener('click', () => {
+    state.character.avatar = '👁️';
+    save(); renderAll(); toast('Back to sigil mode.');
+  });
+  const orb = el('openRulesBtn');
+  if(orb) orb.addEventListener('click', openRulesBook);
 
   el('syncUrl').addEventListener('change', e => { state.settings.sync.url = e.target.value.trim(); save(); });
   el('syncKey').addEventListener('change', e => { state.settings.sync.key = e.target.value.trim(); save(); });
@@ -941,6 +1062,64 @@ create policy "open personal sync"
       location.reload();
     }
   });
+}
+
+/* ---------------- rules book ---------------- */
+
+const RULES_TEXT = `
+<div class="rules-row"><span class="rules-num">1</span><div><b>Quests.</b> Daily quests reset at midnight. Weekly quests reset on Monday. Monthly quests reset on the 1st. Check in ONLY when you truly did the thing — the System can feel a lie.</div></div>
+<div class="rules-row"><span class="rules-num">2</span><div><b>Streak.</b> Complete at least ONE quest each day and your streak grows by 1. Miss a day and it breaks — and the System takes HP for it. A Streak Saver, if you own one, freezes one missed day so the streak survives.</div></div>
+<div class="rules-row"><span class="rules-num">3</span><div><b>EXP &amp; Levels.</b> Every quest gives EXP. Level up when your bar fills. Higher level = higher EXP need, more max HP, and a better title. Titles: Novice, Challenger, Warrior, Elite, Hero, Hunter, Shadow Monarch, Archon, Sovereign.</div></div>
+<div class="rules-row"><span class="rules-num">4</span><div><b>Classes have a power AND a weakness.</b> Your class boosts EXP from its matching quest type, and cuts EXP from its opposite type by 15%. Guardian's power is special: it halves the HP penalty of a broken streak.</div></div>
+<div class="rules-row"><span class="rules-num">5</span><div><b>Stats.</b> Each quest feeds one stat: Body → STR, Mind → INT, Discipline → VIT, Social → CHA, Other → a little of everything.</div></div>
+<div class="rules-row"><span class="rules-num">6</span><div><b>HP.</b> HP is your health. Breaking your streak hurts you (Guardian: half as much). At zero HP the System gives you a quest — finish it and you get 30 HP back. You can also drink HP Potions from the Shop.</div></div>
+<div class="rules-row"><span class="rules-num">7</span><div><b>Gold.</b> Every quest earns gold. Spend it on real-world rewards you create in the Shop, or on Power-ups: Streak Saver (150) and HP Potion (100).</div></div>
+<div class="rules-row"><span class="rules-num">8</span><div><b>Boss Fight.</b> A boss with its own HP bar appears every day. Daily quests deal damage. Kill it for a big EXP and gold drop and a fresh, stronger boss appears. You can name your boss.</div></div>
+<div class="rules-row"><span class="rules-num">9</span><div><b>Perfect Days.</b> Finish every daily quest in a day and earn the "Flawless" badge. Complete a whole week and earn "Undeniable". Perfect days are counted per week.</div></div>
+<div class="rules-row"><span class="rules-num">10</span><div><b>Daily Blessing.</b> Open the game each day and the System greets you with gold: 10 ◈ plus 2 ◈ per streak day. It is a small thank-you for showing up.</div></div>
+<div class="rules-row"><span class="rules-num">11</span><div><b>Luck.</b> 15% of check-ins bring a lucky gold bonus. The System is fickle — that is why you check in.</div></div>
+<div class="rules-row"><span class="rules-num">12</span><div><b>Your life, your rules.</b> Every number on this page — EXP, gold, HP penalties, boss HP, blessing size — can be changed in Settings → Game Master. The System obeys you, Player. Even this book does not stop you rewriting the world.</div></div>
+`;
+
+function openRulesBook(){
+  el('rulesBody').innerHTML = RULES_TEXT;
+  show(el('rulesModal'));
+}
+
+/* ---------------- daily blessing ---------------- */
+
+function maybeBlessing(delay){
+  if(!state || state.lastBlessingDay === todayStr()) return;
+  const amt = 10 + (state.streak || 0) * 2;
+  setTimeout(() => {
+    if(!state || state.lastBlessingDay === todayStr()) return;
+    el('blessingAmt').textContent = '+' + amt + ' ◈';
+    show(el('blessingModal'));
+  }, delay || 0);
+}
+
+/* ---------------- avatar upload ---------------- */
+
+function pickAvatarImage(file, cb){
+  try{
+    const fr = new FileReader();
+    fr.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const c = document.createElement('canvas');
+        const S = 128;
+        c.width = S; c.height = S;
+        const x = c.getContext('2d');
+        const m = Math.min(img.width, img.height);
+        x.drawImage(img, (img.width - m) / 2, (img.height - m) / 2, m, m, 0, 0, S, S);
+        cb(c.toDataURL('image/jpeg', 0.85));
+      };
+      img.onerror = () => toast('Could not read that image. Try another photo.');
+      img.src = fr.result;
+    };
+    fr.onerror = () => toast('Could not read that file.');
+    fr.readAsDataURL(file);
+  }catch(e){ toast('Could not use that image.'); }
 }
 
 /* ---------------- modals ---------------- */
@@ -1030,6 +1209,16 @@ function openBossEditor(){
   el('bmName').value = state.bossCustomName || '';
   show(el('bossModal'));
   setTimeout(() => el('bmName').focus(), 50);
+}
+
+function buyPowerup(key, cost){
+  if(state.gold < cost){ toast('Not enough gold. The System is watching.'); return; }
+  state.gold -= cost;
+  state.inventory[key]++;
+  save(); renderAll(); sfxCheckIn();
+  toast(key === 'streakSaver'
+    ? '🧊 Streak Saver acquired — it will guard your streak automatically.'
+    : '🧪 HP Potion acquired. Find it under Power-ups.');
 }
 
 /* ---------------- backup ---------------- */
@@ -1183,9 +1372,9 @@ function showOverlay(node, ms){
   fxTimer = setTimeout(() => node.classList.add('hidden'), ms);
 }
 
-function floatText(txt, x, y, gold = false){
+function floatText(txt, x, y, style = ''){
   const d = document.createElement('div');
-  d.className = 'float-exp' + (gold ? ' gold' : '');
+  d.className = 'float-exp' + (style ? ' ' + style : '');
   d.textContent = txt;
   d.style.left = Math.max(8, (x || innerWidth / 2) - 20 + (Math.random() * 40 - 20)) + 'px';
   d.style.top = (y || innerHeight / 2) - 30 + 'px';
@@ -1232,7 +1421,11 @@ function cardBar(ctx, x, y, w, h, pct, fill, label){
   ctx.fillText(label, x, y - 8);
 }
 
-function drawCardCanvas(){
+function loadImg(url){
+  return new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = url; });
+}
+
+async function drawCardCanvas(){
   const W = 720, H = 1000;
   const c = document.createElement('canvas');
   c.width = W; c.height = H;
@@ -1262,8 +1455,24 @@ function drawCardCanvas(){
   const rank = rankForLevel(level);
   const cls = CLASSES[state.class] || CLASSES.warrior;
 
-  x.font = '130px system-ui';
-  x.fillText(state.character.avatar, W / 2, 285);
+  if(/^data:/.test(state.character.avatar)){
+    try{
+      const img = await loadImg(state.character.avatar);
+      x.save();
+      roundRect(x, W / 2 - 75, 125, 150, 150, 20);
+      x.clip();
+      x.drawImage(img, W / 2 - 75, 125, 150, 150);
+      x.restore();
+      x.strokeStyle = 'rgba(56,189,248,.7)'; x.lineWidth = 3;
+      roundRect(x, W / 2 - 75, 125, 150, 150, 20); x.stroke();
+    }catch(e){
+      x.font = '130px system-ui';
+      x.fillText('👤', W / 2, 285);
+    }
+  } else {
+    x.font = '130px system-ui';
+    x.fillText(state.character.avatar, W / 2, 285);
+  }
   x.font = '800 52px system-ui'; x.fillStyle = '#e0f2fe';
   x.fillText(state.character.name.toUpperCase(), W / 2, 385);
   x.font = '600 24px system-ui'; x.fillStyle = '#7d8db0';
@@ -1300,8 +1509,7 @@ function drawCardCanvas(){
 }
 
 function saveCardPng(){
-  try{
-    const c = drawCardCanvas();
+  drawCardCanvas().then(c => {
     c.toBlob(blob => {
       if(!blob){ toast('Could not create the card image.'); return; }
       const url = URL.createObjectURL(blob);
@@ -1309,12 +1517,12 @@ function saveCardPng(){
       setTimeout(() => URL.revokeObjectURL(url), 15000);
       toast('📸 Card saved — check your Downloads.');
     }, 'image/png');
-  }catch(e){ toast('Could not create the card image.'); }
+  }).catch(() => toast('Could not create the card image.'));
 }
 
 async function shareCard(){
   try{
-    const c = drawCardCanvas();
+    const c = await drawCardCanvas();
     const blob = await new Promise((res, rej) => c.toBlob(b => b ? res(b) : rej(new Error('no blob')), 'image/png'));
     const file = new File([blob], 'life-rpg-card.png', { type:'image/png' });
     if(navigator.canShare && navigator.canShare({ files:[file] })){
@@ -1368,6 +1576,11 @@ function switchTab(tab){
 
 /* ---------------- first run ---------------- */
 
+function renderFrAvatars(){
+  const prev = el('frAvatarPrev');
+  if(prev) prev.innerHTML = /^data:/.test(pickedAvatar) ? `<img src="${pickedAvatar}" alt="">` : esc(pickedAvatar);
+}
+
 function setupFirstRun(){
   const box = el('frAvatars');
   box.innerHTML = AVATARS.map(a =>
@@ -1375,13 +1588,24 @@ function setupFirstRun(){
   box.querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
     pickedAvatar = b.dataset.a;
     box.querySelectorAll('button').forEach(x => x.classList.toggle('sel', x === b));
+    renderFrAvatars();
   }));
+  const upb = el('frUploadBtn');
+  if(upb) upb.addEventListener('click', () => el('frAvatarFile').click());
+  const upf = el('frAvatarFile');
+  if(upf) upf.addEventListener('change', e => {
+    const f = e.target.files && e.target.files[0];
+    if(f) pickAvatarImage(f, img => { pickedAvatar = img; renderFrAvatars(); });
+    upf.value = '';
+  });
+  renderFrAvatars();
 
   const cx = el('frClasses');
   cx.innerHTML = Object.entries(CLASSES).map(([k, c]) =>
     `<button type="button" data-c="${k}" class="class-card ${k === pickedClass ? 'sel' : ''}">
       <span class="cc-icon">${c.icon}</span><span class="cc-name">${c.name}</span>
-      <span class="cc-desc">${c.desc}</span></button>`).join('');
+      <span class="cc-pro">▲ ${c.pro}</span>
+      <span class="cc-con">▼ ${c.con}</span></button>`).join('');
   cx.querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
     pickedClass = b.dataset.c;
     cx.querySelectorAll('button').forEach(x => x.classList.toggle('sel', x === b));
@@ -1403,6 +1627,7 @@ function startGame(){
   ensureAudio();
   sfxLevelUp();
   toast('The System has chosen you. Daily quests are ready.');
+  maybeBlessing(2500);
 }
 
 /* ---------------- init ---------------- */
@@ -1417,10 +1642,22 @@ function init(){
     save();
     el('app').classList.remove('hidden');
     renderAll();
+    maybeBlessing(1500);
   }
 
   el('tabbar').querySelectorAll('.tab').forEach(t =>
     t.addEventListener('click', () => switchTab(t.dataset.tab)));
+
+  el('tbRules').addEventListener('click', openRulesBook);
+  el('rulesClose').addEventListener('click', () => hide(el('rulesModal')));
+  el('rulesModal').addEventListener('click', e => { if(e.target === el('rulesModal')) hide(el('rulesModal')); });
+  el('blessingClaim').addEventListener('click', () => {
+    const amt = 10 + (state.streak || 0) * 2;
+    state.gold += amt; state.totalGold += amt;
+    state.lastBlessingDay = todayStr();
+    save(); hide(el('blessingModal')); renderAll();
+    sfxBadge(); toast('🎁 Blessing claimed: +' + amt + ' ◈. See you tomorrow, Player.');
+  });
 
   el('qmClose').addEventListener('click', () => hide(el('questModal')));
   el('qmSave').addEventListener('click', saveQuest);
