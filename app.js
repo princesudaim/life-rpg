@@ -979,7 +979,7 @@ function questPath(){
       return `<div class="path-node ${isDone ? 'done' : ''}">
         <div class="pn-track"><span class="pn-dot">${isDone ? '\u2713' : esc(q.icon)}</span></div>
         <div class="pn-card" data-q="${q.id}">
-          <div class="pn-name">${esc(q.name)}${q.dailyLimit > 1 ? ` <small>(${q.timesDone}/${q.dailyLimit})</small>` : ''}</div>
+          <div class="pn-name"><span class="pn-ic">${esc(q.icon)}</span>${esc(q.name)}${q.dailyLimit > 1 ? ` <small>(${q.timesDone}/${q.dailyLimit})</small>` : ''}</div>
           <div class="pn-sub">+${q.exp} EXP \u00B7 +${q.gold} \u25C8</div>
           <button class="check-btn" data-q="${q.id}" ${isDone ? 'disabled' : ''}>${isDone ? 'Done' : 'Check In'}</button>
         </div>
@@ -2176,7 +2176,7 @@ function init(){
   });
 
   if('serviceWorker' in navigator && /^https?:$/.test(location.protocol)){
-    window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+    window.addEventListener('load', () => navigator.serviceWorker.register('sw.js', { updateViaCache: 'revalidate' }).catch(() => {}));
   }
 }
 

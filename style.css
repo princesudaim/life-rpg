@@ -496,6 +496,7 @@ body.sb-open .menu-btn span:nth-child(3){transform:translateY(-7px) rotate(-45de
 .pn-card:hover{border-color:var(--line);}
 .path-node.done .pn-card{border-color:rgba(52,211,153,.25);opacity:.75;}
 .pn-name{font-size:13px;font-weight:700;}
+.pn-ic{margin-right:7px;font-size:16px;line-height:1;}
 .pn-name small{color:var(--muted);font-weight:600;}
 .pn-sub{font-size:10px;color:var(--muted);margin-top:3px;letter-spacing:.5px;}
 .pn-card .check-btn{margin-top:8px;min-width:86px;padding:8px 8px;font-size:10px;}
