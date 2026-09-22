@@ -199,8 +199,9 @@ button{font-family:inherit;}
 .switch input:checked + i::before{transform:translateX(20px);background:var(--cyan-bright);box-shadow:0 0 10px rgba(56,189,248,.8);}
 
 /* ---------- overlays ---------- */
-.overlay{position:fixed;inset:0;z-index:50;display:grid;place-items:center;padding:20px;
+.overlay{position:fixed;inset:0;z-index:50;display:flex;padding:20px;overflow-y:auto;-webkit-overflow-scrolling:touch;
   background:radial-gradient(closest-side, rgba(8,15,34,.92), rgba(4,6,13,.97));}
+.overlay > .sys-window{margin:auto;}
 .empty{color:var(--muted);font-size:13px;padding:18px 4px;text-align:center;}
 
 /* ---------- fx: level up ---------- */

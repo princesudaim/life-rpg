@@ -615,7 +615,7 @@ function renderCharacter(){
   const saverNote = state.inventory.streakSaver > 0 ? ` · 🧊 ×${state.inventory.streakSaver} auto-saver ready` : '';
   el('view-character').innerHTML = `
     <div class="sys-window player-card">
-      <div class="win-bar"><span class="win-title">Player</span><span class="rank-chip rank-${rank}">${rank} RANK</span></div>
+      <div class="win-bar"><span></span><span class="rank-chip rank-${rank}">${rank} RANK</span></div>
       <div class="win-body">
         <div class="p-top">
           <div class="p-avatar">${av}</div>
@@ -1027,11 +1027,12 @@ create policy "open personal sync"
   const upFile = el('setAvatarFile');
   if(upFile) upFile.addEventListener('change', e => {
     const f = e.target.files && e.target.files[0];
-    if(f) pickAvatarImage(f, img => {
+    if(!f) return;
+    pickAvatarImage(f, img => {
+      upFile.value = '';
       state.character.avatar = img;
-      save(); renderAll(); toast('Avatar updated. Looking sharp, Player.');
-    });
-    upFile.value = '';
+      save(); renderAll(); toast('Avatar updated. Looking sharp, ' + state.character.name + '.');
+    }, () => { upFile.value = ''; });
   });
   const rmBtn = el('removeAvBtn');
   if(rmBtn) rmBtn.addEventListener('click', () => {
@@ -1094,13 +1095,14 @@ function maybeBlessing(delay){
   setTimeout(() => {
     if(!state || state.lastBlessingDay === todayStr()) return;
     el('blessingAmt').textContent = '+' + amt + ' ◈';
+    el('blessingGreet').textContent = 'The System greets you, ' + state.character.name + '. You opened your game for a new day.';
     show(el('blessingModal'));
   }, delay || 0);
 }
 
 /* ---------------- avatar upload ---------------- */
 
-function pickAvatarImage(file, cb){
+function pickAvatarImage(file, cb, errCb){
   try{
     const fr = new FileReader();
     fr.onload = () => {
@@ -1114,12 +1116,12 @@ function pickAvatarImage(file, cb){
         x.drawImage(img, (img.width - m) / 2, (img.height - m) / 2, m, m, 0, 0, S, S);
         cb(c.toDataURL('image/jpeg', 0.85));
       };
-      img.onerror = () => toast('Could not read that image. Try another photo.');
+      img.onerror = () => { toast('Could not read that image. Try another photo.'); if(errCb) errCb(); };
       img.src = fr.result;
     };
-    fr.onerror = () => toast('Could not read that file.');
+    fr.onerror = () => { toast('Could not read that file.'); if(errCb) errCb(); };
     fr.readAsDataURL(file);
-  }catch(e){ toast('Could not use that image.'); }
+  }catch(e){ toast('Could not use that image.'); if(errCb) errCb(); }
 }
 
 /* ---------------- modals ---------------- */
@@ -1595,8 +1597,9 @@ function setupFirstRun(){
   const upf = el('frAvatarFile');
   if(upf) upf.addEventListener('change', e => {
     const f = e.target.files && e.target.files[0];
-    if(f) pickAvatarImage(f, img => { pickedAvatar = img; renderFrAvatars(); });
-    upf.value = '';
+    if(!f) return;
+    pickAvatarImage(f, img => { upf.value = ''; pickedAvatar = img; renderFrAvatars(); },
+      () => { upf.value = ''; });
   });
   renderFrAvatars();
 
@@ -1656,7 +1659,7 @@ function init(){
     state.gold += amt; state.totalGold += amt;
     state.lastBlessingDay = todayStr();
     save(); hide(el('blessingModal')); renderAll();
-    sfxBadge(); toast('🎁 Blessing claimed: +' + amt + ' ◈. See you tomorrow, Player.');
+    sfxBadge(); toast('🎁 Blessing claimed: +' + amt + ' ◈. See you tomorrow, ' + state.character.name + '.');
   });
 
   el('qmClose').addEventListener('click', () => hide(el('questModal')));
