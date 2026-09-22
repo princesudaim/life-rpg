@@ -433,8 +433,24 @@ details.help code{background:rgba(4,6,13,.8);padding:1px 5px;border-radius:4px;f
 
 /* ================= v5 — Coddly-inspired shell ================= */
 #shell{display:flex;justify-content:center;}
-#sidebar{display:none;}
 #rail{display:none;}
+
+/* ---------- slide-out nav drawer (hamburger) ---------- */
+#sidebar{position:fixed;left:0;top:0;bottom:0;width:232px;z-index:60;display:flex;flex-direction:column;gap:14px;
+  padding:64px 14px 18px;background:rgba(7,11,22,.97);border-right:1px solid var(--line-soft);
+  transform:translateX(-105%);transition:transform .28s cubic-bezier(.4,0,.2,1);box-shadow:8px 0 30px rgba(0,0,0,.45);}
+body.sb-open #sidebar{transform:translateX(0);}
+#sbBackdrop{position:fixed;inset:0;z-index:55;background:rgba(2,4,10,.62);opacity:0;pointer-events:none;transition:opacity .25s;}
+body.sb-open #sbBackdrop{opacity:1;pointer-events:auto;}
+.menu-btn{position:fixed;top:12px;left:12px;z-index:70;width:40px;height:40px;display:flex;flex-direction:column;
+  justify-content:center;align-items:center;gap:5px;background:rgba(10,18,38,.92);border:1px solid var(--line);
+  border-radius:10px;cursor:pointer;backdrop-filter:blur(6px);}
+.menu-btn:hover{box-shadow:0 0 12px rgba(56,189,248,.35);}
+.menu-btn span{display:block;width:18px;height:2px;border-radius:2px;background:var(--cyan-bright);transition:transform .25s,opacity .2s;}
+body.sb-open .menu-btn span:nth-child(1){transform:translateY(7px) rotate(45deg);}
+body.sb-open .menu-btn span:nth-child(2){opacity:0;}
+body.sb-open .menu-btn span:nth-child(3){transform:translateY(-7px) rotate(-45deg);}
+#topbar{padding-left:64px;}
 .sb-logo{font-size:18px;font-weight:900;letter-spacing:3px;color:var(--text);padding:4px 10px 14px;}
 .sb-logo span{color:var(--cyan-bright);text-shadow:0 0 12px rgba(56,189,248,.7);}
 .sb-nav{display:flex;flex-direction:column;gap:4px;flex:1;}
@@ -447,10 +463,7 @@ details.help code{background:rgba(4,6,13,.8);padding:1px 5px;border-radius:4px;f
 .sb-foot{display:flex;flex-direction:column;gap:6px;padding-top:12px;border-top:1px solid var(--line-soft);}
 .sb-foot .chip{text-align:center;}
 @media(min-width:900px){
-  #sidebar{display:flex;flex-direction:column;width:172px;min-width:172px;min-height:100vh;position:sticky;top:0;
-    align-self:flex-start;padding:18px 12px;gap:14px;border-right:1px solid var(--line-soft);background:rgba(7,11,22,.6);}
   #app{flex:1;min-width:0;padding:0 18px 48px;}
-  #topbar{display:none;}
   #tabbar{display:none;}
 }
 @media(min-width:1380px){

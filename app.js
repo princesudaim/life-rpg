@@ -1954,6 +1954,7 @@ function switchTab(tab){
   document.querySelectorAll('#sidebar .sb-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
   ['character','quests','missions','log','shop','settings'].forEach(v =>
     el('view-' + v).classList.toggle('hidden', v !== tab));
+  if(window.innerWidth < 900) document.body.classList.remove('sb-open');
   renderAll();
 }
 
@@ -2039,6 +2040,11 @@ function init(){
     t.addEventListener('click', () => switchTab(t.dataset.tab)));
   document.querySelectorAll('#sidebar .sb-tab').forEach(t =>
     t.addEventListener('click', () => switchTab(t.dataset.tab)));
+  const mb = el('menuBtn');
+  if(mb) mb.addEventListener('click', () => document.body.classList.toggle('sb-open'));
+  const bd = el('sbBackdrop');
+  if(bd) bd.addEventListener('click', () => document.body.classList.remove('sb-open'));
+  if(window.matchMedia && window.matchMedia('(min-width:900px)').matches) document.body.classList.add('sb-open');
   applyTheme();
   const chOk = el('chestOk');
   if(chOk) chOk.addEventListener('click', () => hide(el('chestModal')));

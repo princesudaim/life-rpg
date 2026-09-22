@@ -37,9 +37,13 @@
     </div>
   </div>
 
+  <!-- NAV DRAWER TOGGLE -->
+  <button id="menuBtn" class="menu-btn" aria-label="Menu"><span></span><span></span><span></span></button>
+  <div id="sbBackdrop"></div>
+
   <!-- MAIN APP -->
   <div id="shell">
-  <aside id="sidebar" class="hidden">
+  <aside id="sidebar">
     <div class="sb-logo">LIFE<span>RPG</span></div>
     <nav class="sb-nav">
       <button data-tab="character" class="sb-tab active">👁️<span>Player</span></button>
@@ -49,11 +53,6 @@
       <button data-tab="shop" class="sb-tab">🛒<span>Shop</span></button>
       <button data-tab="settings" class="sb-tab">📖<span>Rules</span></button>
     </nav>
-    <div class="sb-foot">
-      <div class="chip" id="sbLevel">Lv 1 · E</div>
-      <div class="chip gold" id="sbGold">◈ 0</div>
-      <div class="chip fire" id="sbStreak">🔥 0</div>
-    </div>
   </aside>
   <main id="app" class="hidden">
     <header id="topbar">
@@ -79,7 +78,7 @@
       <button data-tab="settings" class="tab">⚙️<span>Rules</span></button>
     </nav>
   </main>
-  <aside id="rail" class="hidden"></aside>
+  <aside id="rail"></aside>
   </div>
 
   <!-- LEVEL UP / RANK UP cinematic -->
