@@ -205,6 +205,7 @@ button{font-family:inherit;}
 .empty{color:var(--muted);font-size:13px;padding:18px 4px;text-align:center;}
 
 /* ---------- fx: level up ---------- */
+.overlay > .fx-content{margin:auto;max-width:560px;width:100%;}
 .fx-content{text-align:center;animation:fxIn .45s ease;}
 .fx-kicker{letter-spacing:6px;color:var(--muted);font-size:11px;text-transform:uppercase;}
 .fx-big{font-size:54px;font-weight:800;letter-spacing:10px;color:var(--cyan-bright);margin:14px 0 6px;

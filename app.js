@@ -23,8 +23,8 @@ const RANKS = [
   { r:'CROWN',    icon:'\u{1F451}', exp:25000 },
 ];
 const CRATES = {
-  wood:    { icon:'\u{1FAB5}', name:'Wooden Crate',  desc:'Earn 100 EXP today',             goals:{quests:0, exp:100, perfect:0}, rewardHint:'20\u201345 \u25C8 \u00B7 EXP' },
-  gold:    { icon:'\u{1FA99}', name:'Gold Crate',    desc:'Earn 250 EXP today',             goals:{quests:0, exp:250, perfect:0}, rewardHint:'50\u2013100 \u25C8 \u00B7 potion \u00B7 title' },
+  wood:    { icon:'\u{1F4E6}', name:'Wooden Crate',  desc:'Earn 100 EXP today',             goals:{quests:0, exp:100, perfect:0}, rewardHint:'20\u201345 \u25C8 \u00B7 EXP' },
+  gold:    { icon:'\u{1F4B0}', name:'Gold Crate',    desc:'Earn 250 EXP today',             goals:{quests:0, exp:250, perfect:0}, rewardHint:'50\u2013100 \u25C8 \u00B7 potion \u00B7 title' },
   diamond: { icon:'\u{1F48E}', name:'Diamond Crate', desc:'Earn 500 EXP + 5 quests today',  goals:{quests:5, exp:500, perfect:0}, rewardHint:'120\u2013220 \u25C8 \u00B7 saver \u00B7 title' },
 };
 const QUOTES = [
@@ -1243,7 +1243,7 @@ function renderSettings(){
         ${setRow('CURVE STEEPNESS', 'expGrowth', 1.0, 2.0, 0.05, s.expGrowth, v => (+v).toFixed(2))}
         <div class="rank-row">
           ${['rankD','rankC','rankB','rankA','rankS'].map(k =>
-            `<label class="field"><span>${k.slice(4)} RANK</span><input type="number" min="1" data-set="${k}" value="${s[k]}"></label>`).join('')}
+            `<label class="field"><span>${({rankD:'SILVER',rankC:'GOLD',rankB:'PLATINUM',rankA:'DIAMOND',rankS:'CROWN'})[k]} RANK</span><input type="number" min="1" data-set="${k}" value="${s[k]}"></label>`).join('')}
         </div>
         <p class="hint">Reaching level N needs expBase × N^steepness EXP. Steeper = levels get harder faster.</p>
       </div>
