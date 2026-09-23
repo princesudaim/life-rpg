@@ -120,7 +120,7 @@ button{font-family:inherit;}
 .quest{display:flex;gap:12px;align-items:center;padding:14px;border:1px solid var(--line-soft);border-radius:12px;
   background:rgba(56,189,248,.03);margin-bottom:10px;transition:border-color .2s;}
 .quest:hover{border-color:var(--line);}
-.quest.is-done{opacity:.55;}
+.quest.is-done{opacity:.35;}
 .q-icon{font-size:26px;width:46px;height:46px;display:grid;place-items:center;flex:0 0 auto;
   background:rgba(56,189,248,.08);border:1px solid var(--line-soft);border-radius:12px;}
 .q-meta{flex:1;min-width:0;cursor:pointer;}
@@ -657,10 +657,13 @@ body[data-theme="red"] .rl-cell.on{background:var(--red);border-color:var(--red)
 .qg-card{display:flex;flex-direction:column;gap:5px;padding:10px 10px 11px;border:1px solid var(--line-soft);
   border-radius:12px;background:rgba(10,18,38,.5);cursor:pointer;transition:border-color .15s, opacity .15s;}
 .qg-card:hover{border-color:var(--line);}
-.qg-card.done{border-color:rgba(52,211,153,.3);opacity:.6;}
+.qg-card.done{border-color:rgba(52,211,153,.3);opacity:.35;}
 .qg-top{display:flex;align-items:center;gap:7px;min-width:0;}
 .qg-ic{font-size:17px;line-height:1;flex:0 0 auto;}
 .qg-name{font-size:12.5px;font-weight:700;line-height:1.25;}
 .qg-name small{color:var(--muted);font-weight:600;font-size:10px;}
 .qg-sub{font-size:10px;color:var(--muted);letter-spacing:.5px;}
 .qg-btn{margin-top:6px;min-width:0;width:100%;padding:7px 8px;font-size:10px;}
+
+/* v5.4 — completed quests */
+.qgrid-empty{grid-column:1/-1;text-align:center;color:var(--muted);font-size:11px;letter-spacing:1px;padding:12px 0;}

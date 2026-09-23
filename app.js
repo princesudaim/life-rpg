@@ -128,6 +128,7 @@ const DEFAULT_SETTINGS = {
   perfectDayGold:25, perfectWeekGold:75, perfectMonthGold:150,
   bossExp:500, bossGold:100, bossPhases:3, bossKillBonus:50,
   randomQuests:true,
+  hideCompleted:true,
   theme:'cyan', questLayout:'path',
   sync:{ url:'', key:'', auto:false, lastPush:null, lastPull:null, playerId:'' },
 };
@@ -329,6 +330,7 @@ function sanitize(d){
     if(!isFinite(n) || n < 1) d.settings[k] = DEFAULT_SETTINGS[k];
   }
   d.settings.sound = d.settings.sound !== false;
+  d.settings.hideCompleted = d.settings.hideCompleted !== false;
   d.settings.randomQuests = d.settings.randomQuests !== false;
   d.settings.sync = Object.assign({}, def.settings.sync, (d.settings.sync && typeof d.settings.sync === 'object') ? d.settings.sync : {});
   if(!d.settings.sync.playerId) d.settings.sync.playerId = newPlayerId();
@@ -426,50 +428,14 @@ function rankLadder(){
       <span class="rl-icon">${info.cur.icon}</span>
       <div class="rl-main">
         <div class="rl-name">RANK &nbsp;<b>${info.cur.r}</b></div>
-        <div class="rl-next">${info.next ? fmt(info.next.exp - info.te) + ' EXP to ' + info.next.icon + ' ' + info.next.r : '★ MAX RANK REACHED'}</div>
+        <div class="rl-next">${info.next ? fmt(info.toGo) + ' EXP to ' + info.next.icon + ' ' + info.next.r + ' (Lv ' + info.nextLevel + ')' : '★ MAX RANK REACHED'}</div>
       </div>
     </div>
     <div class="bar" style="margin-top:10px"><i style="width:${info.pct}%"></i></div>
-    <div class="rl-best">🔥 best streak ${state.bestStreak || 0} &nbsp;·&nbsp; ⭐ best day ${state.bestQuestsDay || 0} quests</div>
+    <div class="rl-best">⭐ best day ${state.bestQuestsDay || 0} quests</div>
   </div>`;
 }
 function statPoints(exp){ return Math.max(1, Math.round(exp / 50)); }
-
-/* ---------------- daily missions ---------------- */
-
-function genMissions(){
-  const t = todayStr();
-  if(!state || state.missions.day === t) return;
-  state.missions = { day: t, bonusClaimed:false, list: [
-    { id:'m-quests', icon:'\u2694\uFE0F', desc:'Complete 2 quests today', target:2, key:'quests', progress:0, reward:15, claimed:false },
-    { id:'m-exp', icon:'\u2728', desc:'Earn 60 EXP today', target:60, key:'exp', progress:0, reward:20, claimed:false },
-    { id:'m-perfect', icon:'\u{1F3AF}', desc:'Perfect Day \u2014 finish ALL daily quests', target:1, key:'perfect', progress:0, reward:30, claimed:false },
-  ] };
-  save();
-}
-
-function missionBump(key, amt){
-  if(!state || state.missions.day !== todayStr()) return;
-  for(const m of state.missions.list){
-    if(m.key === key && m.progress < m.target){
-      m.progress = Math.min(m.target, m.progress + amt);
-      if(m.progress >= m.target && !m.claimed){
-        m.claimed = true;
-        state.gold += m.reward; state.totalGold += m.reward;
-        toast('\u2705 Mission complete: ' + m.desc + '  +' + m.reward + ' \u25C8');
-        sfxBadge();
-      }
-    }
-  }
-  if(!state.missions.bonusClaimed && state.missions.list.every(m => m.progress >= m.target)){
-    state.missions.bonusClaimed = true;
-    state.gold += 15; state.totalGold += 15;
-    setTimeout(() => toast('\u{1F3C6} ALL MISSIONS \u2014 Mission Master bonus +15 \u25C8. The System is proud.'), 1800);
-  }
-  save();
-}
-
-/* ---------------- ranks & totals ---------------- */
 
 function totalExp(){
   const cur = levelFromExp(state.exp);
@@ -478,14 +444,26 @@ function totalExp(){
   return Math.round(t);
 }
 
+function expToReachLevel(L){
+  let t = 0;
+  for(let l = 1; l < L; l++) t += expNeededFor(l);
+  return t;
+}
 function rankInfo(){
+  const { level } = levelFromExp(state.exp);
+  const s = state.settings;
+  const cur = RANKS.find(x => x.r === rankForLevel(level)) || RANKS[0];
+  const idx = RANKS.indexOf(cur);
+  const nextLevel = [s.rankD, s.rankC, s.rankB, s.rankA, s.rankS, null][idx];
+  const next = nextLevel ? RANKS[idx + 1] : null;
   const te = totalExp();
-  let idx = 0;
-  for(let i = 0; i < RANKS.length; i++) if(te >= RANKS[i].exp) idx = i;
-  const cur = RANKS[idx];
-  const next = RANKS[idx + 1] || null;
-  const pct = next ? Math.min(100, Math.round((te - cur.exp) / (next.exp - cur.exp) * 100)) : 100;
-  return { te, cur, next, pct, idx };
+  let pct = 100, toGo = 0;
+  if(nextLevel){
+    const base = expToReachLevel(level), target = expToReachLevel(nextLevel);
+    pct = Math.min(100, Math.max(0, Math.round((te - base) / Math.max(1, target - base) * 100)));
+    toGo = Math.max(0, target - te);
+  }
+  return { level, te, cur, next, nextLevel, pct, toGo };
 }
 
 /* ---------------- themes ---------------- */
@@ -770,7 +748,6 @@ function renderTopbar(){
   const { level } = levelFromExp(state.exp);
   el('tbLevel').textContent = `Lv ${level} · ${rankIcon(rankForLevel(level))}`;
   el('tbGold').textContent = `◈ ${fmt(state.gold)}`;
-  el('tbStreak').textContent = `🔥 ${state.streak}`;
   const vt = el('viewToggleBtn');
   if(vt){
     const tog = { quests: state.viewModes.quests, shop: state.viewModes.shop, crates: state.viewModes.crates };
@@ -781,10 +758,9 @@ function renderTopbar(){
       vt.title = 'Switch layout → ' + next;
     } else vt.style.display = 'none';
   }
-  const sbL = el('sbLevel'), sbG = el('sbGold'), sbS = el('sbStreak');
+  const sbL = el('sbLevel'), sbG = el('sbGold');
   if(sbL) sbL.textContent = `Lv ${level} · ${rankForLevel(level)}`;
   if(sbG) sbG.textContent = `◈ ${fmt(state.gold)}`;
-  if(sbS) sbS.textContent = `🔥 ${state.streak}`;
 }
 
 function crateMini(){
@@ -797,7 +773,7 @@ function crateMini(){
   if(g.exp) line.push(fmt(p.exp) + '/' + fmt(g.exp) + ' EXP');
   return `<div class="rail-boss-name">${r.icon} ${esc(r.name)}${c.done ? ' ✓' : ''}</div>
     <div class="bar" style="margin-top:8px"><i style="width:${pct}%"></i></div>
-    <div class="hint" style="margin-top:6px">${c.done ? 'Complete!' : line.join(' · ')}</div>`;
+    <div class="hint" style="margin-top:6px">${c.done ? (c.claimed ? 'Collected ✓' : 'Unlocked — open it in the Crates tab') : line.join(' · ')}</div>`;
 }
 
 function renderRail(){
@@ -817,7 +793,7 @@ function renderRail(){
           <div class="bar"><i style="width:${Math.min(100, Math.round(into / needed * 100))}%"></i></div></div>
         <div class="bar-block"><div class="bar-label"><span>HP</span><span>${Math.round(state.hp)} / ${mh}</span></div>
           <div class="bar hp"><i style="width:${Math.max(0, Math.min(100, Math.round(state.hp / mh * 100)))}%"></i></div></div>
-        <div class="rail-stats"><span>🔥 ${state.streak}</span><span>◈ ${fmt(state.gold)}</span><span>⭐ ${fmt(state.totalQuests)}</span></div>
+        <div class="rail-stats"><span>◈ ${fmt(state.gold)}</span><span>⭐ ${fmt(state.totalQuests)}</span></div>
       </div>
     </div>
     <div class="sys-window rail-card">
@@ -919,12 +895,14 @@ function questCard(q){
 }
 
 function questGroup(freq, label){
-  const group = state.quests.filter(q => q.freq === freq);
-  const done = group.filter(q => q.timesDone >= q.dailyLimit).length;
+  const all = state.quests.filter(q => q.freq === freq);
+  const group = (freq === 'daily' && state.settings.hideCompleted) ? all.filter(q => q.timesDone < q.dailyLimit) : all;
+  const done = all.filter(q => q.timesDone >= q.dailyLimit).length;
   const body = group.length
     ? group.map(questCard).join('')
-    : `<div class="empty small">No ${label.toLowerCase()} quests yet — tap "+ New".</div>`;
-  return `<div class="group-head"><span>${label}</span><span class="g-count">${done}/${group.length}</span></div>${body}`;
+    : (done ? `<div class="empty small">✓ All ${label.toLowerCase()} quests done for today</div>`
+            : `<div class="empty small">No ${label.toLowerCase()} quests yet — tap "+ New".</div>`);
+  return `<div class="group-head"><span>${label}</span><span class="g-count">${done}/${all.length}</span></div>${body}`;
 }
 
 function bossCard(){
@@ -974,7 +952,8 @@ function questPath(){
     const group = dailies.filter(q => q.category === c);
     if(!group.length) return '';
     const done = group.filter(q => q.timesDone >= q.dailyLimit).length;
-    const nodes = group.map(q => {
+    const shown = state.settings.hideCompleted ? group.filter(q => q.timesDone < q.dailyLimit) : group;
+    const nodes = shown.map(q => {
       const isDone = q.timesDone >= q.dailyLimit;
       return `<div class="qg-card ${isDone ? 'done' : ''}" data-q="${q.id}">
         <div class="qg-top"><span class="qg-ic">${esc(q.icon)}</span><span class="qg-name">${esc(q.name)}${q.dailyLimit > 1 ? ` <small>(${q.timesDone}/${q.dailyLimit})</small>` : ''}</span></div>
@@ -984,7 +963,7 @@ function questPath(){
     }).join('');
     return `<div class="path-section">
       <div class="path-head"><span class="path-cat">${ic} ${c}</span><span class="g-count">${done}/${group.length}</span></div>
-      <div class="qgrid">${nodes}</div>
+      <div class="qgrid">${nodes || '<div class="qgrid-empty">✓ All done for today</div>'}</div>
     </div>`;
   }).join('');
   const others = state.quests.filter(q => q.freq !== 'daily');
@@ -1042,7 +1021,9 @@ function renderCrates(){
       const bars = [];
       if(g.quests) bars.push('<div class="bar"><i style="width:' + Math.min(100, Math.round(p.quests / g.quests * 100)) + '%"></i></div><div class="crate-prog">' + p.quests + '/' + g.quests + ' quests</div>');
       if(g.exp) bars.push('<div class="bar"><i style="width:' + Math.min(100, Math.round(p.exp / g.exp * 100)) + '%"></i></div><div class="crate-prog">' + fmt(p.exp) + '/' + fmt(g.exp) + ' EXP</div>');
-      inner = c.done ? '<div class="crate-status">✓ UNLOCKED</div>' : bars.join('');
+      inner = c.done ? (c.claimed
+        ? '<div class="crate-status">✓ COLLECTED</div>'
+        : '<button class="btn primary" data-crate-open="1">OPEN ' + r.icon + '</button>') : bars.join('');
     } else {
       inner = '<button class="btn small ' + (dimmed ? 'ghost' : 'primary') + '" data-crate="' + k + '" ' + (dimmed ? 'disabled' : '') + '>' + (dimmed ? 'Locked' : 'Choose') + '</button>';
     }
@@ -1069,6 +1050,8 @@ function renderCrates(){
     </div>`;
   document.querySelectorAll('[data-crate]').forEach(b =>
     b.addEventListener('click', () => chooseCrate(b.dataset.crate)));
+  const openBtn = document.querySelector('#view-crates [data-crate-open]');
+  if(openBtn) openBtn.addEventListener('click', claimCrate);
 }
 
 function renderLog(){
@@ -1275,6 +1258,9 @@ function renderSettings(){
         <div class="set-row"><span>RANDOM QUESTS</span>
           <label class="switch"><input type="checkbox" id="setRandom" data-set="randomQuests" ${s.randomQuests ? 'checked' : ''}><i></i></label><b></b>
         </div>
+        <div class="set-row"><span>HIDE COMPLETED DAILY QUESTS</span>
+          <label class="switch"><input type="checkbox" id="setHideDone" data-set="hideCompleted" ${s.hideCompleted ? 'checked' : ''}><i></i></label><b></b>
+        </div>
       </div>
 
       <div class="set-sec">
@@ -1353,6 +1339,7 @@ create policy "open personal sync"
         if(ve) ve.textContent = v;
       }
       save();
+      if(k === 'hideCompleted') renderAll();
     });
   });
 
@@ -1423,8 +1410,8 @@ const RULES_TEXT = `
 <div class="rules-row"><span class="rules-num">9</span><div><b>Perfect Days.</b> Finish every daily quest in a day and earn the "Flawless" badge. Complete a whole week and earn "Undeniable". Perfect days are counted per week.</div></div>
 <div class="rules-row"><span class="rules-num">10</span><div><b>Daily Blessing.</b> Open the game each day and the System greets you with gold: 10 ◈ plus 2 ◈ per streak day. It is a small thank-you for showing up.</div></div>
 <div class="rules-row"><span class="rules-num">11</span><div><b>Luck.</b> 15% of check-ins bring a lucky gold bonus. The System is fickle — that is why you check in.</div></div>
-<div class="rules-row"><span class="rules-num">12</span><div><b>System Ranks.</b> Your rank climbs with your power, lobby by lobby: BRONZE → SILVER → GOLD → PLATINUM → DIAMOND → CROWN (500 / 1,500 / 4,000 / 10,000 / 25,000 lifetime EXP). Your personal records — longest streak and best quest day — sit under the rank card.</div></div>
-<div class="rules-row"><span class="rules-num">13</span><div><b>Crates.</b> Each day the System offers three crates — a challenge, not a mission: Wooden (earn 100 EXP, small reward), Gold (earn 250 EXP, medium reward), Diamond (earn 500 EXP + 5 quests, big reward). Choose ONE — the clock starts immediately and you cannot switch. Finish it before midnight and the crate opens: Wooden 20–45 ◈ · Gold 50–100 ◈, potion, title · Diamond 120–220 ◈, Streak Saver, title.</div></div>
+<div class="rules-row"><span class="rules-num">12</span><div><b>System Ranks.</b> Your rank climbs with your power, lobby by lobby: BRONZE → SILVER → GOLD → PLATINUM → DIAMOND → CROWN. Default ladder: SILVER at level 5, GOLD at 10, PLATINUM at 15, DIAMOND at 20, CROWN at 30 — you can move every step in Settings (Leveling Curve). Your best quest day sits under the rank card.</div></div>
+<div class="rules-row"><span class="rules-num">13</span><div><b>Crates.</b> Each day the System offers three crates — a challenge, not a mission: Wooden (earn 100 EXP, small reward), Gold (earn 250 EXP, medium reward), Diamond (earn 500 EXP + 5 quests, big reward). Choose ONE — the clock starts immediately and you cannot switch. Beat the goal and the crate is UNLOCKED — tap OPEN to collect your reward (Wooden 20–45 ◈ · Gold 50–100 ◈, potion, title · Diamond 120–220 ◈, Streak Saver, title). Forget to open it by midnight? It collects itself automatically.</div></div>
 <div class="rules-row"><span class="rules-num">14</span><div><b>Chests &amp; Collection.</b> The Shop has a Free Supply (10–30 ◈, once a day) and a Mystery Chest (60 ◈) with random drops: gold, EXP, HP Potion, Streak Saver, or a new title. Your Badge Collection shows every badge you have earned — the locked ones wait there until you earn them. Bonus titles from chests can be worn on your card.</div></div>
 <div class="rules-row"><span class="rules-num">15</span><div><b>Your life, your rules.</b> Every number on this page — EXP, gold, HP penalties, boss HP, blessing size, theme, quest layout — can be changed in Settings → Game Master. The System obeys you, Player. Even this book does not stop you rewriting the world.</div></div>
 `;
@@ -1631,7 +1618,14 @@ function crateReset(){
   const t = todayStr();
   if(!state) return;
   if(!state.crates || state.crates.day !== t){
+    const old = state.crates;
     state.crates = { day:t, tier:null, progress:{quests:0, exp:0, perfect:0}, done:false, claimed:false };
+    if(old && old.tier && old.done && !old.claimed){
+      const res = rollCrateReward(old.tier);
+      if(res.type === 'exp') state.exp += res.amount;
+      save();
+      toast(CRATES[old.tier].icon + ' Last night\'s ' + CRATES[old.tier].name + ' was collected: ' + res.desc);
+    }
   }
 }
 
@@ -1658,19 +1652,27 @@ function crateBump(){
   c.progress.exp = Math.max(c.progress.exp, state.dayExp || 0);
   const ok = (c.progress.quests >= g.quests) && (c.progress.exp >= g.exp) && (c.progress.perfect >= g.perfect);
   if(ok){
-    c.done = true; c.claimed = true;
-    const res = rollCrateReward(c.tier);
-    if(res.type === 'exp'){
-      const before = levelFromExp(state.exp);
-      state.exp += res.amount;
-      const after = levelFromExp(state.exp);
-      if(after.level > before.level) levelUpFX(before.level, after.level, rankForLevel(before.level), rankForLevel(after.level));
-    }
+    c.done = true;
     save(); renderAll(); sfxLevelUp();
-    showChestResult({ icon: CRATES[c.tier].icon, title: CRATES[c.tier].name + ' \u2014 UNLOCKED', desc: res.desc, sub: CRATES[c.tier].desc });
+    toast(CRATES[c.tier].icon + ' ' + CRATES[c.tier].name + ' UNLOCKED — open it in the Crates tab to collect your reward!');
   } else {
     save();
   }
+}
+
+function claimCrate(){
+  const c = state && state.crates;
+  if(!c || !c.tier || !c.done || c.claimed) return;
+  const res = rollCrateReward(c.tier);
+  if(res.type === 'exp'){
+    const before = levelFromExp(state.exp);
+    state.exp += res.amount;
+    const after = levelFromExp(state.exp);
+    if(after.level > before.level) levelUpFX(before.level, after.level, rankForLevel(before.level), rankForLevel(after.level));
+  }
+  c.claimed = true;
+  save(); renderAll(); sfxLevelUp();
+  showChestResult({ icon: CRATES[c.tier].icon, title: CRATES[c.tier].name + ' \u2014 UNLOCKED', desc: res.desc, sub: CRATES[c.tier].desc });
 }
 
 function rollCrateReward(tier){
