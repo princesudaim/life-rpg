@@ -1293,7 +1293,6 @@ function renderSettings(){
         ${setRow('HP PENALTY (miss a day)', 'hpPenalty', 0, 50, 5, s.hpPenalty)}
         ${setRow('HP HEAL (per check-in)', 'hpHeal', 0, 10, 1, s.hpHeal)}
         ${setRow('MAX HP (AT LEVEL 1)', 'maxHp', 50, 300, 10, s.maxHp)}
-        <p class="hint" style="margin-top:4px">Max HP grows +5 per level — at your level your max is <b>${maxHp()}</b> HP.</p>
       </div>
 
       <div class="set-sec">
