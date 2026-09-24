@@ -820,27 +820,170 @@ function renderTopbar(){
   if(sbG) sbG.textContent = `◈ ${fmt(state.gold)}`;
 }
 
-function crateMini(){
-  const c = state.crates;
-  if(!c.tier) return '<div class="hint">Pick today\'s crate in the Crates tab.</div>';
-  const r = CRATES[c.tier], g = r.goals, p = c.progress;
-  const pct = c.done ? 100 : (g.exp ? Math.min(100, Math.round(p.exp / g.exp * 100)) : (g.quests ? Math.min(100, Math.round(p.quests / g.quests * 100)) : 0));
-  const line = [];
-  let near = '';
-  if(!c.done){
-    if(g.quests && g.quests - p.quests <= 1) near = 'One more quest cracks it';
-    if(g.exp && g.exp - p.exp > 0){
-      const open = state.quests.filter(q => q.freq === 'daily' && q.timesDone < q.dailyLimit);
-      const biggest = open.length ? Math.max(...open.map(q => q.exp)) : 0;
-      if(biggest && g.exp - p.exp <= biggest) near = 'One more check-in cracks it';
-      else if(p.exp / g.exp >= .7) near = 'So close \u2014 ' + (g.exp - p.exp) + ' EXP left';
-    }
+function crateNearMissInfo(){
+  const c = state && state.crates;
+  if(!c) return null;
+  if(!c.tier){
+    return {
+      tier: null,
+      status: 'unselected',
+      headline: 'NO CRATE CHOSEN TODAY',
+      nearText: 'Pick your challenge in Crates — the clock is ticking!',
+      pct: 0,
+    };
   }
-  if(g.quests) line.push(p.quests + '/' + g.quests + ' quests');
-  if(g.exp) line.push(fmt(p.exp) + '/' + fmt(g.exp) + ' EXP');
+  const r = CRATES[c.tier];
+  if(!r) return null;
+  const g = r.goals;
+  const p = c.progress;
+  const expNeed = Math.max(0, (g.exp || 0) - (p.exp || 0));
+  const questNeed = Math.max(0, (g.quests || 0) - (p.quests || 0));
+  const pct = c.done ? 100 : Math.min(99, Math.round(
+    g.exp && g.quests
+      ? ((p.exp / g.exp) + (p.quests / g.quests)) / 2 * 100
+      : (g.exp ? (p.exp / g.exp * 100) : (p.quests / g.quests * 100))
+  ));
+
+  if(c.claimed){
+    return {
+      tier: c.tier,
+      name: r.name,
+      status: 'claimed',
+      headline: 'CRATE COLLECTED',
+      nearText: '✓ Today\'s crate reward claimed — next crate unlocks at midnight',
+      pct: 100,
+    };
+  }
+
+  if(c.done){
+    return {
+      tier: c.tier,
+      name: r.name,
+      status: 'unlocked',
+      headline: 'CRATE UNLOCKED!',
+      nearText: '🎉 Challenge complete! Tap to open and claim your reward!',
+      pct: 100,
+      canOpen: true,
+    };
+  }
+
+  const openDailies = state.quests.filter(q => q.freq === 'daily' && q.timesDone < q.dailyLimit);
+  const biggestExp = openDailies.length ? Math.max(...openDailies.map(q => q.exp)) : 50;
+  let urgency = 'normal';
+  let nearText = '';
+
+  if((g.quests && questNeed === 1) || (g.exp && expNeed > 0 && expNeed <= biggestExp)){
+    urgency = 'critical';
+    nearText = '⚡ ONE MORE CHECK-IN CRACKS IT! (' + (expNeed ? expNeed + ' EXP to go' : '1 quest to go') + ')';
+  } else if(pct >= 60){
+    urgency = 'close';
+    nearText = '🔥 SO CLOSE! Only ' + (expNeed ? expNeed + ' EXP' : questNeed + ' quests') + ' left — finish before midnight!';
+  } else if(pct >= 25){
+    urgency = 'progress';
+    nearText = '🎯 ' + pct + '% complete — ' + (expNeed ? expNeed + ' EXP' : questNeed + ' quests') + ' remaining today!';
+  } else {
+    urgency = 'start';
+    nearText = '⏳ ' + (expNeed ? expNeed + ' EXP' : questNeed + ' quests') + ' to crack today\'s ' + r.name + ' · ' + timeLeftToday() + ' left!';
+  }
+
+  return {
+    tier: c.tier,
+    name: r.name,
+    status: 'progress',
+    headline: r.name.toUpperCase(),
+    nearText,
+    urgency,
+    pct,
+    expProg: g.exp ? (fmt(p.exp) + ' / ' + fmt(g.exp) + ' EXP') : '',
+    questProg: g.quests ? (p.quests + ' / ' + g.quests + ' quests') : '',
+  };
+}
+
+function crateBanner(){
+  const info = crateNearMissInfo();
+  if(!info) return '';
+  const c = state.crates;
+  const time = timeLeftToday();
+
+  if(info.status === 'unselected'){
+    return `
+    <div class="crate-banner-card unchosen">
+      <div class="cbc-head">
+        <span class="cbc-kicker">📦 DAILY CRATE CHALLENGE</span>
+        <span class="time-chip">⏳ ${time} left</span>
+      </div>
+      <div class="cbc-body">
+        <div class="cbc-text">
+          <div class="cbc-title">No challenge locked in for today</div>
+          <div class="cbc-sub near">⚡ Choose Wood, Gold, or Diamond to start earning bonus EXP & gold!</div>
+        </div>
+        <button class="btn primary small" data-crate-banner-choose="1">Choose Crate</button>
+      </div>
+    </div>`;
+  }
+
+  const r = CRATES[c.tier];
+  if(info.status === 'claimed'){
+    return `
+    <div class="crate-banner-card claimed">
+      <div class="cbc-head">
+        <span class="cbc-kicker"><span class="mini-cv">${crateVisual(c.tier, true)}</span> ${esc(r.name).toUpperCase()}</span>
+        <span class="time-chip">✓ Collected</span>
+      </div>
+      <div class="cbc-body">
+        <div class="cbc-text">
+          <div class="cbc-sub">✓ Today's crate reward was collected — next challenge opens at midnight.</div>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  if(info.status === 'unlocked'){
+    return `
+    <div class="crate-banner-card unlocked">
+      <div class="cbc-head">
+        <span class="cbc-kicker"><span class="mini-cv">${crateVisual(c.tier, true)}</span> ${esc(r.name).toUpperCase()} — UNLOCKED!</span>
+        <span class="time-chip">Ready to open</span>
+      </div>
+      <div class="cbc-body">
+        <div class="cbc-text">
+          <div class="cbc-title" style="color:#6ee7b7">Challenge Complete!</div>
+          <div class="cbc-near near">🎉 Tap to crack open your crate and claim your loot!</div>
+        </div>
+        <button class="btn primary" data-crate-banner-open="1">OPEN CRATE</button>
+      </div>
+    </div>`;
+  }
+
+  return `
+  <div class="crate-banner-card in-progress ${info.urgency === 'critical' ? 'critical' : ''}">
+    <div class="cbc-head">
+      <span class="cbc-kicker"><span class="mini-cv">${crateVisual(c.tier, true)}</span> ${esc(r.name).toUpperCase()}</span>
+      <span class="time-chip">⏳ ${time} left</span>
+    </div>
+    <div class="cbc-body-row">
+      <div class="cbc-main">
+        <div class="cbc-prog-row">
+          <span>${esc(r.desc)}</span>
+          <span class="cbc-prog-val">${info.expProg ? info.expProg : ''}${info.expProg && info.questProg ? ' · ' : ''}${info.questProg ? info.questProg : ''}</span>
+        </div>
+        <div class="bar"><i style="width:${info.pct}%"></i></div>
+        <div class="cbc-near ${info.urgency === 'critical' || info.urgency === 'close' ? 'near' : ''}">${info.nearText}</div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function crateMini(){
+  const info = crateNearMissInfo();
+  if(!info || info.status === 'unselected'){
+    return '<div class="hint">No crate chosen today — <button class="btn-link" onclick="switchTab(\'crates\')">pick one in Crates</button>.</div>';
+  }
+  const c = state.crates;
+  const r = CRATES[c.tier];
   return `<div class="rail-boss-name"><span class="mini-cv">${crateVisual(c.tier, true)}</span>${esc(r.name)}${c.done ? ' \u2713' : ''}</div>
-    <div class="bar" style="margin-top:8px"><i style="width:${pct}%"></i></div>
-    <div class="hint" style="margin-top:6px">${c.done ? (c.claimed ? 'Collected \u2713' : 'Unlocked \u2014 open it in the Crates tab') : (near ? '<span class="near">' + near + '</span>' : line.join(' \u00B7 '))}</div>`;
+    <div class="bar" style="margin-top:8px"><i style="width:${info.pct}%"></i></div>
+    <div class="hint" style="margin-top:6px">${c.done ? (c.claimed ? 'Collected \u2713' : '<button class="btn primary small" onclick="claimCrate()" style="margin-top:4px;width:100%">OPEN CRATE</button>') : '<span class="near">' + info.nearText + '</span>'}</div>`;
 }
 
 
@@ -914,16 +1057,31 @@ function renderCharacter(){
           <div class="bar-label"><span>HP</span><span>${Math.round(state.hp)} / ${mh}</span></div>
           <div class="bar hp"><i style="width:${hpPct}%"></i></div>
         </div>
-        <div class="stat-line">
-          <span class="st-str">STR ${state.stats.STR}</span>
-          <span class="st-int">INT ${state.stats.INT}</span>
-          <span class="st-vit">VIT ${state.stats.VIT}</span>
-          <span class="st-cha">CHA ${state.stats.CHA}</span>
-          <span class="st-gold">◈ ${fmt(state.gold)}</span>
+        <div class="stat-grid">
+          <div class="stat-card st-str">
+            <div class="sc-head"><span class="sc-icon">💪</span> FITNESS</div>
+            <div class="sc-val">${state.stats.STR}</div>
+            <div class="sc-hint">Body & Strength</div>
+          </div>
+          <div class="stat-card st-int">
+            <div class="sc-head"><span class="sc-icon">🧠</span> MIND</div>
+            <div class="sc-val">${state.stats.INT}</div>
+            <div class="sc-hint">Knowledge & Focus</div>
+          </div>
+          <div class="stat-card st-vit">
+            <div class="sc-head"><span class="sc-icon">⚡</span> DISCIPLINE</div>
+            <div class="sc-val">${state.stats.VIT}</div>
+            <div class="sc-hint">Habits & Routine</div>
+          </div>
+          <div class="stat-card st-cha">
+            <div class="sc-head"><span class="sc-icon">🤝</span> SOCIAL</div>
+            <div class="sc-val">${state.stats.CHA}</div>
+            <div class="sc-hint">People & Charisma</div>
+          </div>
         </div>
         ${rankLadder()}
         <div class="p-foot-row">
-          <div class="p-foot">⭐ ${fmt(state.totalQuests)} quests · 🏅 ${state.badges.length} · 🐉 ${state.bossKills || 0} · since ${new Date(state.created).toLocaleDateString()}</div>
+          <div class="p-foot">⭐ ${fmt(state.totalQuests)} quests · ◈ ${fmt(state.gold)} gold · 🏅 ${state.badges.length} badges · 🐉 ${state.bossKills || 0} bosses · since ${new Date(state.created).toLocaleDateString()}</div>
           <div class="p-actions">
             <button class="btn" id="shareCardBtn" title="Share card image">📸</button>
             <button class="btn" id="saveCardBtn" title="Save card image">⬇</button>
@@ -1046,6 +1204,7 @@ function renderQuests(){
   const usePath = state.viewModes.quests === 'path';
   el('view-quests').innerHTML = `
     ${bossCard()}
+    ${crateBanner()}
     ${systemCard()}
     <div class="sys-window">
       <div class="win-bar"><span class="win-title">${usePath ? 'Quest Path' : 'Quest Board'}</span>
@@ -1074,6 +1233,10 @@ function renderQuests(){
   if(sh) sh.addEventListener('click', e => systemHit(e));
   const si = el('sysIgnoreBtn');
   if(si) si.addEventListener('click', systemIgnore);
+  document.querySelectorAll('[data-crate-banner-open]').forEach(b =>
+    b.addEventListener('click', claimCrate));
+  document.querySelectorAll('[data-crate-banner-choose]').forEach(b =>
+    b.addEventListener('click', () => switchTab('crates')));
 }
 
 function renderCrates(){
@@ -1089,9 +1252,11 @@ function renderCrates(){
       const bars = [];
       if(g.quests) bars.push('<div class="bar"><i style="width:' + Math.min(100, Math.round(p.quests / g.quests * 100)) + '%"></i></div><div class="crate-prog">' + p.quests + '/' + g.quests + ' quests</div>');
       if(g.exp) bars.push('<div class="bar"><i style="width:' + Math.min(100, Math.round(p.exp / g.exp * 100)) + '%"></i></div><div class="crate-prog">' + fmt(p.exp) + '/' + fmt(g.exp) + ' EXP</div>');
+      const info = crateNearMissInfo();
+      const nearMsg = (info && info.nearText) ? '<div class="crate-near-msg near">' + info.nearText + '</div>' : '';
       inner = c.done ? (c.claimed
         ? '<div class="crate-status">✓ COLLECTED</div>'
-        : '<button class="btn primary" data-crate-open="1">OPEN</button>') : bars.join('');
+        : '<button class="btn primary" data-crate-open="1">OPEN</button>') : (bars.join('') + nearMsg);
     } else {
       inner = '<button class="btn small ' + (dimmed ? 'ghost' : 'primary') + '" data-crate="' + k + '" ' + (dimmed ? 'disabled' : '') + '>' + (dimmed ? 'Locked' : 'Choose') + '</button>';
     }
@@ -1471,7 +1636,7 @@ const RULES_TEXT = `
 <div class="rules-row"><span class="rules-num">2</span><div><b>Streak.</b> Complete at least ONE quest each day and your streak grows by 1. Miss a day and it breaks — and the System takes HP for it. A Streak Saver, if you own one, freezes one missed day so the streak survives.</div></div>
 <div class="rules-row"><span class="rules-num">3</span><div><b>EXP &amp; Levels.</b> Every quest gives EXP. Level up when your bar fills. Higher level = higher EXP need, more max HP, and a better title. Titles: Novice, Challenger, Warrior, Elite, Hero, Hunter, Shadow Monarch, Archon, Sovereign.</div></div>
 <div class="rules-row"><span class="rules-num">4</span><div><b>Truth only.</b> The System rewards actions, not words. Check in ONLY when you truly did the thing — a fake check-in is a debt, and the System keeps a ledger.</div></div>
-<div class="rules-row"><span class="rules-num">5</span><div><b>Stats.</b> Each quest feeds one stat: Body → STR, Mind → INT, Discipline → VIT, Social → CHA, Other → a little of everything.</div></div>
+<div class="rules-row"><span class="rules-num">5</span><div><b>Real-Life Attributes.</b> Each quest levels up a core skill: Body quests build <b>Fitness</b>, Mind quests build <b>Mind</b>, Discipline quests build <b>Discipline</b>, and Social quests build <b>Social</b>. The higher your stats, the stronger you become.</div></div>
 <div class="rules-row"><span class="rules-num">6</span><div><b>HP.</b> HP is your health. Breaking your streak hurts you (Guardian: half as much). At zero HP the System gives you a quest — finish it and you get 30 HP back. You can also drink HP Potions from the Shop.</div></div>
 <div class="rules-row"><span class="rules-num">7</span><div><b>Gold.</b> Every quest earns gold. Spend it on real-world rewards you create in the Shop, or on Power-ups: Streak Saver (150) and HP Potion (100).</div></div>
 <div class="rules-row"><span class="rules-num">8</span><div><b>Boss Fight.</b> A boss with its own HP bar appears every day. Daily quests deal damage. Kill it for a big EXP and gold drop and a fresh, stronger boss appears. You can name your boss.</div></div>
@@ -2086,13 +2251,14 @@ async function drawCardCanvas(){
 
   const keys = ['STR', 'INT', 'VIT', 'CHA'];
   const colors = { STR:'#f87171', INT:'#7dd3fc', VIT:'#34d399', CHA:'#fbbf24' };
+  const labels = { STR:'FITNESS', INT:'MIND', VIT:'DISCIPLINE', CHA:'SOCIAL' };
   keys.forEach((k, i) => {
     const cx = 110 + i * 180;
     x.textAlign = 'center';
     x.font = '800 34px system-ui'; x.fillStyle = colors[k];
     x.fillText(state.stats[k], cx, 850);
-    x.font = '600 17px system-ui'; x.fillStyle = '#7d8db0';
-    x.fillText(k, cx, 880);
+    x.font = '700 15px system-ui'; x.fillStyle = '#7d8db0';
+    x.fillText(labels[k], cx, 880);
   });
 
   x.textAlign = 'center';

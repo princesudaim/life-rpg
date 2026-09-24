@@ -467,7 +467,7 @@ body.sb-open .menu-btn span:nth-child(3){transform:translateY(-7px) rotate(-45de
   #app{flex:1;min-width:0;padding:0 18px 48px;}
   #tabbar{display:none;}
 }
-@media(min-width:1380px){
+@media(min-width:1080px){
   #rail{display:block;width:272px;min-width:272px;position:sticky;top:0;align-self:flex-start;
     padding:18px 14px;max-height:100vh;overflow-y:auto;border-left:1px solid var(--line-soft);background:rgba(7,11,22,.6);}
 }
@@ -747,3 +747,40 @@ body[data-theme="red"] .rl-cell.on{background:var(--red);border-color:var(--red)
 @keyframes nearPulse{0%,100%{opacity:1;}50%{opacity:.5;}}
 /* one-tap: bigger check-in button on phones */
 @media(max-width:600px){.qg-btn{padding:10px 8px;font-size:11px;}}
+
+/* ================= v6.1 — near-miss everywhere + easy language stats ================= */
+.crate-banner-card{display:flex;flex-direction:column;gap:8px;padding:12px 14px;margin-bottom:12px;border-radius:12px;
+  border:1px solid rgba(251,191,36,.32);border-left:3px solid rgba(251,191,36,.85);
+  background:rgba(217,119,6,.08);box-shadow:0 0 16px rgba(251,191,36,.06);}
+.crate-banner-card.critical{border-color:rgba(251,191,36,.65);border-left-color:#fbbf24;
+  background:rgba(245,158,11,.14);box-shadow:0 0 24px rgba(251,191,36,.22);}
+.crate-banner-card.unlocked{border-color:rgba(52,211,153,.55);border-left-color:#34d399;
+  background:rgba(16,185,129,.12);box-shadow:0 0 26px rgba(52,211,153,.25);}
+.crate-banner-card.unchosen{border-color:rgba(125,141,176,.3);border-left-color:rgba(125,141,176,.7);
+  background:rgba(255,255,255,.02);}
+.cbc-head{display:flex;align-items:center;justify-content:space-between;gap:8px;}
+.cbc-kicker{font-size:10px;font-weight:800;letter-spacing:2px;color:var(--gold);text-transform:uppercase;display:flex;align-items:center;gap:6px;}
+.crate-banner-card.unlocked .cbc-kicker{color:#6ee7b7;}
+.cbc-body{display:flex;align-items:center;gap:12px;justify-content:space-between;}
+.cbc-body-row{display:flex;align-items:center;gap:12px;}
+.cbc-main{flex:1;min-width:0;}
+.cbc-prog-row{display:flex;justify-content:space-between;align-items:center;font-size:11px;color:var(--muted);margin-bottom:6px;}
+.cbc-prog-val{font-weight:700;color:var(--text);}
+.cbc-near{font-size:11px;margin-top:6px;}
+.cbc-text{flex:1;min-width:0;}
+.cbc-title{font-size:13px;font-weight:700;color:var(--text);margin-bottom:2px;}
+.cbc-sub{font-size:11px;color:var(--muted);}
+.crate-near-msg{margin-top:8px;font-size:11px;text-align:center;}
+
+/* stats grid with easy language */
+.stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:14px;}
+@media(max-width:540px){.stat-grid{grid-template-columns:repeat(2,1fr);}}
+.stat-card{background:rgba(255,255,255,.03);border:1px solid var(--line-soft);border-radius:8px;padding:8px 6px;text-align:center;}
+.stat-card .sc-head{font-size:10px;font-weight:800;letter-spacing:1px;color:var(--muted);display:flex;align-items:center;justify-content:center;gap:4px;}
+.stat-card .sc-val{font-size:22px;font-weight:800;margin:3px 0 1px;line-height:1.1;}
+.stat-card .sc-hint{font-size:9px;color:rgba(125,141,176,.65);letter-spacing:.3px;}
+.stat-card.st-str .sc-val{color:#f87171;}
+.stat-card.st-int .sc-val{color:#7dd3fc;}
+.stat-card.st-vit .sc-val{color:#34d399;}
+.stat-card.st-cha .sc-val{color:#fbbf24;}
+.btn-link{background:none;border:none;color:var(--cyan-bright);cursor:pointer;text-decoration:underline;padding:0;font:inherit;}
