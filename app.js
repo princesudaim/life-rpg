@@ -117,7 +117,7 @@ const BADGES = [
   { id:'gold1k',   icon:'👑', name:'Wealthy',      desc:'Earn 1,000 total gold',      test:s=>s.totalGold>=1000 },
   { id:'boss1',    icon:'🗡️', name:'Boss Slayer',  desc:'Defeat your first weekly boss', test:s=>(s.bossKills||0)>=1 },
   { id:'boss10',   icon:'⚔️', name:'Demon Hunter', desc:'Defeat 10 weekly bosses',    test:s=>(s.bossKills||0)>=10 },
-  { id:'stat100',  icon:'🧬', name:'Awakened',     desc:'Reach 100 total stat points', test:s=>(s.stats.STR+s.stats.INT+s.stats.VIT+s.stats.CHA)>=100 },
+  { id:'stat100',  icon:'🧬', name:'Awakened',     desc:'Reach 5,000 total EXP', test:s=>s.exp>=5000 },
 ];
 
 const DEFAULT_SETTINGS = {
@@ -413,20 +413,29 @@ function levelFromExp(total){
   while(rem >= expNeededFor(level)){ rem -= expNeededFor(level); level++; }
   return { level, into:rem, needed:expNeededFor(level) };
 }
-function rankForLevel(l){
-  const s = state.settings;
-  if(l >= s.rankS) return 'CROWN';
-  if(l >= s.rankA) return 'DIAMOND';
-  if(l >= s.rankB) return 'PLATINUM';
-  if(l >= s.rankC) return 'GOLD';
-  if(l >= s.rankD) return 'SILVER';
-  return 'BRONZE';
+function rankIndexForExp(expTotal){
+  return Math.min(RANKS.length - 1, Math.max(0, Math.floor(Math.max(0, expTotal) / 500)));
 }
-function rankIndexForLevel(l){ return RANKS.findIndex(r => r.r === rankForLevel(l)); }
+function rankForLevel(l){
+  if(typeof l === 'number' && l > 0 && l <= 100){
+    const s = state ? state.settings : DEFAULT_SETTINGS;
+    if(l >= s.rankS) return 'CROWN';
+    if(l >= s.rankA) return 'DIAMOND';
+    if(l >= s.rankB) return 'PLATINUM';
+    if(l >= s.rankC) return 'GOLD';
+    if(l >= s.rankD) return 'SILVER';
+    return 'BRONZE';
+  }
+  return rankAtExp(state ? state.exp : 0);
+}
+function rankIndexForLevel(l){
+  if(typeof l === 'number') return RANKS.findIndex(r => r.r === rankForLevel(l));
+  return rankIndexForExp(state ? state.exp : 0);
+}
 function rankAtExp(expTotal){
-  const { level } = levelFromExp(expTotal);
-  const drop = (state.season && Number(state.season.drop)) || 0;
-  return RANKS[Math.max(0, rankIndexForLevel(level) - drop)].r;
+  const baseIdx = rankIndexForExp(expTotal);
+  const drop = (state && state.season && Number(state.season.drop)) || 0;
+  return RANKS[Math.max(0, baseIdx - drop)].r;
 }
 
 /* ---------------- seasons (PUBG-style: one month, rank drops two at the start) ---------------- */
@@ -449,7 +458,7 @@ function seasonTick(){
   state.season.num = Math.max(1, Math.floor(Number(state.season.num) || 1));
   const cur = seasonInfo();
   if(cur.num > state.season.num){
-    const base = rankIndexForLevel(levelFromExp(state.exp).level);
+    const base = rankIndexForExp(state.exp);
     state.season.drop = Math.min(base, 2);
     state.season.num = cur.num;
     save();
@@ -511,24 +520,20 @@ function expToReachLevel(L){
   return t;
 }
 function rankInfo(){
-  const { level } = levelFromExp(state.exp);
-  const s = state.settings;
-  const baseIdx = rankIndexForLevel(level);
-  const drop = (state.season && Number(state.season.drop)) || 0;
+  const te = state ? state.exp : 0;
+  const baseIdx = rankIndexForExp(te);
+  const drop = (state && state.season && Number(state.season.drop)) || 0;
   const effIdx = Math.max(0, baseIdx - drop);
   const cur = RANKS[effIdx];
   const next = effIdx < RANKS.length - 1 ? RANKS[effIdx + 1] : null;
-  const levelAtIdx = [1, s.rankD, s.rankC, s.rankB, s.rankA, s.rankS];
-  const needIdx = next ? effIdx + 1 + drop : null;
-  const nextLevel = (needIdx !== null && needIdx < levelAtIdx.length) ? levelAtIdx[needIdx] : null;
-  const te = totalExp();
   let pct = 100, toGo = 0;
-  if(nextLevel){
-    const base = expToReachLevel(level), target = expToReachLevel(nextLevel);
-    pct = Math.min(100, Math.max(0, Math.round((te - base) / Math.max(1, target - base) * 100)));
-    toGo = Math.max(0, target - te);
+  if(next){
+    const targetExp = (effIdx + 1 + drop) * 500;
+    const prevExp = targetExp - 500;
+    toGo = Math.max(0, targetExp - te);
+    pct = Math.min(100, Math.max(0, Math.round((te - prevExp) / 500 * 100)));
   }
-  return { level, te, cur, next, nextLevel, pct, toGo, drop, baseIdx, effIdx };
+  return { te, cur, next, pct, toGo, drop, baseIdx, effIdx };
 }
 
 /* ---------------- themes ---------------- */
@@ -1388,26 +1393,24 @@ function renderShop(){
   const supply = [
     { vis:'bag', name:'Free Supply', desc:'10–30 ◈ daily gift.',
       b1:{t: state.freeSupplyDay === todayStr() ? 'Tomorrow' : 'Claim', d: state.freeSupplyDay === todayStr()}, id:'free' },
-    { vis:'chest', name:'Mystery Chest', desc:'Random drops: gold, EXP, powerups, titles.',
+    { vis:'chest', name:'Mystery Chest', desc:'Drops gold, EXP, rare powerups, titles.',
       b1:{t: state.gold >= 60 ? 'Open · 60' : '60 ◈', d: state.gold < 60}, id:'chest' },
-    { vis:'xp', name:'XP Potion', desc:'2× XP for next 3 quests. Owned ×' + (inv.xpPotion || 0) + (state.xpMultiplier ? ' (ACTIVE ×' + state.xpMultiplier + ')' : '') + '.',
-      b1:{t: state.gold >= 50 ? 'Buy · 50' : '50 ◈', d: state.gold < 50}, id:'buy-xpPotion',
-      b2:{t:'Drink', d:(inv.xpPotion || 0) <= 0}, id2:'use-xpPotion' },
-    { vis:'salmon', name:'Baked Salmon', desc:'Restores +40 HP & +20 EXP energy. Owned ×' + (inv.salmon || 0) + '.',
-      b1:{t: state.gold >= 30 ? 'Buy · 30' : '30 ◈', d: state.gold < 30}, id:'buy-salmon',
-      b2:{t:'Eat', d:(inv.salmon || 0) <= 0}, id2:'eat-salmon' },
-    { vis:'armor', name:'System Armor', desc:'Shields HP & penalties on missed days. Owned ×' + (inv.armor || 0) + '.',
+    { vis:'armor', name:'System Armor', desc:'Shields HP on missed days. Owned ×' + (inv.armor || 0) + '.',
       b1:{t: state.gold >= 80 ? 'Buy · 80' : '80 ◈', d: state.gold < 80}, id:'buy-armor' },
-    { vis:'seer', name:'Seer Stone', desc:'Auto-completes 1 stuck daily quest. Owned ×' + (inv.seerStone || 0) + '.',
-      b1:{t: state.gold >= 90 ? 'Buy · 90' : '90 ◈', d: state.gold < 90}, id:'buy-seer',
-      b2:{t:'Use', d:(inv.seerStone || 0) <= 0}, id2:'use-seer' },
-    { vis:'frozen-flame', name:'Frozen Flame', desc:'Guards streak for 4 FULL DAYS when resting. Owned ×' + (inv.frozenFlame || 0) + (state.streakFrozenDays ? ' (' + state.streakFrozenDays + 'd shield)' : '') + '.',
-      b1:{t: state.gold >= 180 ? 'Buy · 180' : '180 ◈', d: state.gold < 180}, id:'buy-frozenFlame' },
     { vis:'ice', name:'Streak Saver', desc:'1-day auto streak freeze. Owned ×' + (inv.streakSaver || 0) + '.',
       b1:{t: state.gold >= 150 ? 'Buy · 150' : '150 ◈', d: state.gold < 150}, id:'saver' },
     { vis:'flask', name:'HP Potion', desc:'Heals 50 HP. Owned ×' + (inv.hpPotion || 0) + '.',
       b1:{t: state.gold >= 100 ? 'Buy · 100' : '100 ◈', d: state.gold < 100}, id:'potion',
       b2:{t:'Drink', d:(inv.hpPotion || 0) <= 0}, id2:'drink' },
+    // Rare loot: only found in chests or quests
+    { vis:'xp', name:'XP Potion', desc: (inv.xpPotion ? 'Owned ×' + inv.xpPotion + (state.xpMultiplier ? ' (ACTIVE ×' + state.xpMultiplier + ')' : '') + '.' : 'Rare drop · Find in Chests or Quests.'),
+      b1:{t: (inv.xpPotion || 0) > 0 ? 'Drink' : 'Rare Drop', d:(inv.xpPotion || 0) <= 0}, id:'use-xpPotion' },
+    { vis:'salmon', name:'Baked Salmon', desc: (inv.salmon ? 'Owned ×' + inv.salmon + ' · +40 HP feast.' : 'Rare drop · Find in Chests or Quests.'),
+      b1:{t: (inv.salmon || 0) > 0 ? 'Eat' : 'Rare Drop', d:(inv.salmon || 0) <= 0}, id:'eat-salmon' },
+    { vis:'seer', name:'Seer Stone', desc: (inv.seerStone ? 'Owned ×' + inv.seerStone + ' · Auto-completes 1 quest.' : 'Epic drop · Find in Chests or Quests.'),
+      b1:{t: (inv.seerStone || 0) > 0 ? 'Use' : 'Epic Drop', d:(inv.seerStone || 0) <= 0}, id:'use-seer' },
+    { vis:'frozen-flame', name:'Frozen Flame', desc: (inv.frozenFlame ? 'Owned ×' + inv.frozenFlame + ' · 4-day freeze shield.' : 'Epic drop · Find in Chests or Quests.'),
+      b1:{t: (inv.frozenFlame || 0) > 0 ? 'Active' : 'Epic Drop', d:true}, id:'none' },
   ];
 
   const cardBtns = it =>
@@ -1918,23 +1921,38 @@ function buyPowerup(key, cost){
 
 function rollChest(){
   const pool = [
-    { type:'gold', w:40 }, { type:'exp', w:12 }, { type:'potion', w:22 },
-    { type:'saver', w:10 }, { type:'title', w:16 },
+    { type:'gold', w:28 },
+    { type:'exp', w:14 },
+    { type:'potion', w:14 },
+    { type:'saver', w:10 },
+    { type:'xpPotion', w:10 },
+    { type:'salmon', w:10 },
+    { type:'seerStone', w:6 },
+    { type:'frozenFlame', w:4 },
+    { type:'title', w:8 },
   ];
   let tot = 0; for(const p of pool) tot += p.w;
   let r = Math.random() * tot, pick = pool[0];
   for(const p of pool){ r -= p.w; if(r < 0){ pick = p; break; } }
   const res = { type: pick.type };
   const lockedT = TITLES.filter(t => !state.collection.titles.includes(t));
-  if(pick.type === 'gold'){ res.icon = '◈'; res.amount = 20 + Math.floor(Math.random() * 41); res.desc = res.amount + ' ◈ gold'; }
-  else if(pick.type === 'exp'){ res.icon = '✨'; res.amount = 50 + Math.floor(Math.random() * 101); res.desc = '+' + res.amount + ' EXP'; }
-  else if(pick.type === 'potion'){ res.icon = '🧪'; state.inventory.hpPotion++; res.desc = 'HP Potion — +50 HP'; }
-  else if(pick.type === 'saver'){ res.icon = '🧊'; state.inventory.streakSaver++; res.desc = 'Streak Saver — auto-protects one missed day'; }
+  if(pick.type === 'gold'){ res.visual = supplyVisual('bag'); res.amount = 20 + Math.floor(Math.random() * 41); res.desc = res.amount + ' ◈ gold'; res.tier = 'common'; }
+  else if(pick.type === 'exp'){ res.visual = supplyVisual('bag'); res.amount = 50 + Math.floor(Math.random() * 101); res.desc = '+' + res.amount + ' EXP'; res.tier = 'common'; }
+  else if(pick.type === 'potion'){ res.visual = supplyVisual('flask'); state.inventory.hpPotion = (state.inventory.hpPotion || 0) + 1; res.desc = 'HP Potion — +50 HP'; res.tier = 'common'; }
+  else if(pick.type === 'saver'){ res.visual = supplyVisual('ice'); state.inventory.streakSaver = (state.inventory.streakSaver || 0) + 1; res.desc = 'Streak Saver — auto-protects 1 missed day'; res.tier = 'rare'; }
+  else if(pick.type === 'xpPotion'){ res.visual = supplyVisual('xp'); state.inventory.xpPotion = (state.inventory.xpPotion || 0) + 1; res.desc = '⚡ XP Potion (RARE) — 2× XP on next 3 quests!'; res.tier = 'rare'; }
+  else if(pick.type === 'salmon'){ res.visual = supplyVisual('salmon'); state.inventory.salmon = (state.inventory.salmon || 0) + 1; res.desc = '🐟 Baked Salmon (RARE) — +40 HP & +20 EXP feast!'; res.tier = 'rare'; }
+  else if(pick.type === 'seerStone'){ res.visual = supplyVisual('seer'); state.inventory.seerStone = (state.inventory.seerStone || 0) + 1; res.desc = '🔮 Seer Stone (EPIC) — auto-completes 1 daily quest!'; res.tier = 'epic'; }
+  else if(pick.type === 'frozenFlame'){ res.visual = supplyVisual('frozen-flame'); state.inventory.frozenFlame = (state.inventory.frozenFlame || 0) + 1; res.desc = '❄️ Frozen Flame (EPIC) — 4-day streak protection shield!'; res.tier = 'epic'; }
   else {
-    if(lockedT.length){ const t = lockedT[Math.floor(Math.random() * lockedT.length)]; state.collection.titles.push(t); res.icon = '🏷️'; res.desc = 'New title: ' + t; }
-    else { res.icon = '◈'; res.amount = 50; res.desc = 'All titles already owned — 50 ◈ back'; }
+    if(lockedT.length){ const t = lockedT[Math.floor(Math.random() * lockedT.length)]; state.collection.titles.push(t); res.visual = supplyVisual('chest'); res.desc = 'New title unlocked: "' + t + '"'; res.tier = 'epic'; }
+    else { res.visual = supplyVisual('bag'); res.amount = 75; res.desc = '+75 ◈ gold (all titles owned)'; res.tier = 'rare'; }
   }
-  if(res.amount) { state.gold += res.amount; state.totalGold += res.amount; }
+  if(res.amount){
+    if(res.type === 'gold'){ state.gold += res.amount; state.totalGold += res.amount; }
+    else if(res.type === 'exp'){ state.exp += res.amount; }
+  }
+  save(); renderAll();
   return res;
 }
 
