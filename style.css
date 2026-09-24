@@ -673,3 +673,77 @@ body[data-theme="red"] .rl-cell.on{background:var(--red);border-color:var(--red)
   color:var(--muted);border:1px solid var(--line-soft);border-radius:8px;padding:5px 10px;margin-bottom:10px;}
 .rl-season span:first-child{color:var(--gold);font-weight:800;}
 .rl-drop{font-size:10px;color:var(--gold);margin-top:8px;letter-spacing:.5px;}
+
+/* ================= v6.0 — dopamine kit: drawn visuals (no emoji) ================= */
+.cv{position:relative;display:inline-block;flex:0 0 auto;}
+/* crates (wood / gold / diamond) */
+.crate-icon{font-size:0;line-height:0;display:flex;justify-content:center;}
+.cv-crate{width:56px;height:44px;border-radius:6px;background:linear-gradient(180deg,#8a5a2b,#6b421c 55%,#57351a);box-shadow:0 4px 10px rgba(0,0,0,.4);}
+.cv-crate::before{content:'';position:absolute;inset:0;border-radius:6px;
+  background:repeating-linear-gradient(180deg,rgba(0,0,0,.18) 0 2px,transparent 2px 11px);}
+.cv-crate .cv-band{position:absolute;left:0;right:0;top:38%;height:7px;background:linear-gradient(180deg,#c9ad6f,#8a6c39);z-index:1;border-radius:2px;}
+.cv-crate .cv-lock{position:absolute;left:50%;top:36%;width:12px;height:13px;transform:translateX(-50%);
+  background:#e6d3a3;border-radius:2px 2px 5px 5px;z-index:2;box-shadow:0 0 6px rgba(0,0,0,.5);}
+.cv-crate.cv-gold{background:linear-gradient(180deg,#f7d774,#d4a437 55%,#a87c1e);}
+.cv-crate.cv-gold::before{background:repeating-linear-gradient(180deg,rgba(255,255,255,.16) 0 2px,transparent 2px 11px);}
+.cv-crate.cv-gold .cv-band{background:linear-gradient(180deg,#fff0c0,#c79a3a);}
+.cv-crate.cv-gold .cv-lock{background:#fff6dd;}
+.cv-crate.cv-diamond{background:linear-gradient(180deg,#28455f,#16293c 60%,#0e1c2b);}
+.cv-crate.cv-diamond .cv-band{background:linear-gradient(180deg,#7dd3fc,#38bdf8);}
+.cv-crate.cv-diamond .cv-lock{background:#67e8f9;box-shadow:0 0 10px rgba(103,232,249,.9);}
+.crate-icon .cv-crate{width:64px;height:50px;}
+.cv.sm{transform:scale(.45);transform-origin:center left;}
+.mini-cv{display:inline-block;vertical-align:-5px;margin-right:6px;}
+/* supply drop items */
+.cv-bag{width:40px;height:34px;background:linear-gradient(180deg,#f7d774,#c9972e);
+  border-radius:48% 48% 46% 46%/58% 58% 42% 42%;box-shadow:0 3px 8px rgba(0,0,0,.35);}
+.cv-bag::before{content:'';position:absolute;left:50%;top:-5px;width:16px;height:9px;transform:translateX(-50%);
+  border:5px solid #a87c1e;border-bottom:none;border-radius:10px 10px 0 0;}
+.cv-chest{width:52px;height:38px;border-radius:6px;background:linear-gradient(180deg,#b07a3a,#7a4d1e 55%,#5e3a16);box-shadow:0 4px 10px rgba(0,0,0,.4);}
+.cv-chest::before{content:'';position:absolute;left:0;right:0;top:0;height:14px;border-radius:6px 6px 0 0;
+  background:linear-gradient(180deg,#d8a35a,#a06a2c);box-shadow:0 2px 0 rgba(0,0,0,.25);}
+.cv-chest::after{content:'';position:absolute;left:50%;top:8px;width:12px;height:14px;transform:translateX(-50%);
+  background:#f2d488;border-radius:3px;box-shadow:0 0 8px rgba(247,215,116,.7);}
+.cv-ice{width:34px;height:34px;border-radius:8px;background:linear-gradient(135deg,#e0f2fe,#7dd3fc 60%,#38bdf8);
+  box-shadow:0 0 14px rgba(56,189,248,.55), inset 0 0 10px rgba(255,255,255,.65);}
+.cv-ice::before{content:'';position:absolute;left:6px;top:5px;width:10px;height:4px;border-radius:4px;
+  background:rgba(255,255,255,.9);transform:rotate(-24deg);}
+.cv-flask{width:26px;height:40px;border:2px solid rgba(186,230,253,.8);border-radius:6px 6px 12px 12px;
+  background:linear-gradient(180deg,rgba(56,189,248,.25),rgba(56,189,248,.5) 45%,#34d399 46%,#10b981);
+  box-shadow:0 0 12px rgba(52,211,153,.5);}
+.cv-flask::before{content:'';position:absolute;left:50%;top:-9px;width:10px;height:9px;transform:translateX(-50%);
+  background:#c9ad6f;border-radius:3px;}
+.cv-spark{width:36px;height:36px;
+  background:radial-gradient(circle at 50% 50%, #fff7cf 0 25%, rgba(251,191,36,.9) 50%, transparent 75%);
+  clip-path:polygon(50% 0,61% 39%,100% 50%,61% 61%,50% 100%,39% 61%,0 50%,39% 39%);
+  filter:drop-shadow(0 0 8px rgba(251,191,36,.8));}
+.cv-gem{width:34px;height:34px;background:linear-gradient(160deg,#a5f3fc,#22d3ee 55%,#0e7490);
+  clip-path:polygon(50% 0,100% 38%,82% 100%,18% 100%,0 38%);filter:drop-shadow(0 0 10px rgba(34,211,238,.8));}
+.sc-icon, .sri{font-size:0;line-height:0;display:flex;align-items:center;justify-content:center;}
+/* chest result modal: drawn icon + tiers */
+.chest-icon{font-size:0 !important;display:flex;justify-content:center;align-items:center;min-height:70px;}
+.chest-icon .cv{transform:scale(1.5);}
+#chestModal.t-rare .sys-window{border-color:rgba(167,139,250,.65);box-shadow:0 0 34px rgba(139,92,246,.35);}
+#chestModal.t-epic .sys-window{border-color:rgba(251,191,36,.8);box-shadow:0 0 46px rgba(251,191,36,.5);animation:epicGlow 1.4s ease-in-out infinite alternate;}
+#chestModal.t-rare .chest-title{color:#c4b5fd;text-shadow:0 0 14px rgba(139,92,246,.7);}
+#chestModal.t-epic .chest-title{color:var(--gold);text-shadow:0 0 18px rgba(251,191,36,.85);}
+@keyframes epicGlow{from{box-shadow:0 0 30px rgba(251,191,36,.4);}to{box-shadow:0 0 60px rgba(251,191,36,.75);}}
+/* streak flame (drawn, grows with streak) */
+.flame{position:relative;display:inline-block;width:26px;height:32px;margin-right:8px;vertical-align:-5px;
+  background:radial-gradient(120% 120% at 50% 85%, #fff7cf 0 18%, #fde047 34%, #fb923c 62%, #ef4444 88%, transparent 100%);
+  border-radius:50% 50% 46% 46%/62% 62% 38% 38%;
+  filter:drop-shadow(0 0 10px rgba(251,146,60,.85));
+  transform-origin:50% 100%;animation:flick .9s ease-in-out infinite alternate;}
+.flame::after{content:'';position:absolute;left:50%;bottom:2px;width:40%;height:44%;transform:translateX(-50%);
+  background:radial-gradient(50% 60% at 50% 80%, #fff 0 30%, rgba(255,247,207,.9) 60%, transparent 100%);border-radius:50%;}
+.flame.f1{width:18px;height:22px;margin-right:6px;}
+.flame.f2{width:22px;height:27px;}
+.flame.f3{width:26px;height:32px;}
+.flame.f4{width:31px;height:39px;filter:drop-shadow(0 0 15px rgba(249,115,22,.95));}
+.flame.f5{width:38px;height:48px;filter:drop-shadow(0 0 22px rgba(239,68,68,1));animation-duration:.55s;}
+@keyframes flick{from{transform:scaleY(1) rotate(-2deg);}to{transform:scaleY(1.09) rotate(2.5deg);}}
+/* near-miss pulse */
+.near{color:var(--gold);font-weight:700;letter-spacing:.5px;animation:nearPulse 1.2s ease-in-out infinite;}
+@keyframes nearPulse{0%,100%{opacity:1;}50%{opacity:.5;}}
+/* one-tap: bigger check-in button on phones */
+@media(max-width:600px){.qg-btn{padding:10px 8px;font-size:11px;}}

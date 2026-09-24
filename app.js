@@ -826,12 +826,23 @@ function crateMini(){
   const r = CRATES[c.tier], g = r.goals, p = c.progress;
   const pct = c.done ? 100 : (g.exp ? Math.min(100, Math.round(p.exp / g.exp * 100)) : (g.quests ? Math.min(100, Math.round(p.quests / g.quests * 100)) : 0));
   const line = [];
+  let near = '';
+  if(!c.done){
+    if(g.quests && g.quests - p.quests <= 1) near = 'One more quest cracks it';
+    if(g.exp && g.exp - p.exp > 0){
+      const open = state.quests.filter(q => q.freq === 'daily' && q.timesDone < q.dailyLimit);
+      const biggest = open.length ? Math.max(...open.map(q => q.exp)) : 0;
+      if(biggest && g.exp - p.exp <= biggest) near = 'One more check-in cracks it';
+      else if(p.exp / g.exp >= .7) near = 'So close \u2014 ' + (g.exp - p.exp) + ' EXP left';
+    }
+  }
   if(g.quests) line.push(p.quests + '/' + g.quests + ' quests');
   if(g.exp) line.push(fmt(p.exp) + '/' + fmt(g.exp) + ' EXP');
-  return `<div class="rail-boss-name">${r.icon} ${esc(r.name)}${c.done ? ' ✓' : ''}</div>
+  return `<div class="rail-boss-name"><span class="mini-cv">${crateVisual(c.tier, true)}</span>${esc(r.name)}${c.done ? ' \u2713' : ''}</div>
     <div class="bar" style="margin-top:8px"><i style="width:${pct}%"></i></div>
-    <div class="hint" style="margin-top:6px">${c.done ? (c.claimed ? 'Collected ✓' : 'Unlocked — open it in the Crates tab') : line.join(' · ')}</div>`;
+    <div class="hint" style="margin-top:6px">${c.done ? (c.claimed ? 'Collected \u2713' : 'Unlocked \u2014 open it in the Crates tab') : (near ? '<span class="near">' + near + '</span>' : line.join(' \u00B7 '))}</div>`;
 }
+
 
 function renderRail(){
   const r = el('rail');
@@ -892,7 +903,7 @@ function renderCharacter(){
           <div class="p-lvl"><b>${level}</b><span>LEVEL</span></div>
         </div>
         <div class="streak-row">
-          <div class="streak-big">🔥 ${state.streak}<small>DAY STREAK · BEST ${state.bestStreak || 0}</small></div>
+          <div class="streak-big"><span class="flame f${flameTier(state.streak)}"></span>${state.streak}<small>DAY STREAK · BEST ${state.bestStreak || 0}</small></div>
           <div class="streak-note">Do at least 1 quest today to keep the fire alive.${saverNote}</div>
         </div>
         <div class="bar-block">
@@ -1080,12 +1091,12 @@ function renderCrates(){
       if(g.exp) bars.push('<div class="bar"><i style="width:' + Math.min(100, Math.round(p.exp / g.exp * 100)) + '%"></i></div><div class="crate-prog">' + fmt(p.exp) + '/' + fmt(g.exp) + ' EXP</div>');
       inner = c.done ? (c.claimed
         ? '<div class="crate-status">✓ COLLECTED</div>'
-        : '<button class="btn primary" data-crate-open="1">OPEN ' + r.icon + '</button>') : bars.join('');
+        : '<button class="btn primary" data-crate-open="1">OPEN</button>') : bars.join('');
     } else {
       inner = '<button class="btn small ' + (dimmed ? 'ghost' : 'primary') + '" data-crate="' + k + '" ' + (dimmed ? 'disabled' : '') + '>' + (dimmed ? 'Locked' : 'Choose') + '</button>';
     }
     return '<div class="crate ' + (isChosen ? 'chosen' : '') + ' ' + (dimmed ? 'dim' : '') + '">' +
-      '<div class="crate-icon">' + r.icon + '</div>' +
+      '<div class="crate-icon">' + crateVisual(k) + '</div>' +
       '<div class="crate-name">' + r.name + '</div>' +
       '<div class="crate-goal">' + r.desc + '</div>' +
       '<div class="crate-reward">' + r.rewardHint + '</div>' +
@@ -1148,13 +1159,13 @@ function renderShop(){
   }).join('') || '<div class="empty">Nothing redeemed yet. Earn gold, then claim what you deserve.</div>';
 
   const supply = [
-    { icon:'\u{1F4E6}', name:'Free Supply', desc:'10\u201330 \u25C8, once per day. The System\'s daily gift.',
+    { vis:'bag', name:'Free Supply', desc:'10\u201330 \u25C8, once per day. The System\'s daily gift.',
       b1:{t: state.freeSupplyDay === todayStr() ? 'Tomorrow' : 'Claim', d: state.freeSupplyDay === todayStr()}, id:'free' },
-    { icon:'\u{1F381}', name:'Mystery Chest', desc:'Random drop: gold \u00B7 EXP \u00B7 potion \u00B7 saver \u00B7 new title.',
+    { vis:'chest', name:'Mystery Chest', desc:'Random drop: gold \u00B7 EXP \u00B7 potion \u00B7 saver \u00B7 new title.',
       b1:{t: state.gold >= 60 ? 'Open \u00B7 60' : '60 \u25C8', d: state.gold < 60}, id:'chest' },
-    { icon:'\u{1F9CA}', name:'Streak Saver', desc:'Miss a day? Your streak FREEZES instead of breaking. Owned \u00D7' + state.inventory.streakSaver + '.',
+    { vis:'ice', name:'Streak Saver', desc:'Miss a day? Your streak FREEZES instead of breaking. Owned \u00D7' + state.inventory.streakSaver + '.',
       b1:{t: state.gold >= 150 ? 'Buy \u00B7 150' : '150 \u25C8', d: state.gold < 150}, id:'saver' },
-    { icon:'\u{1F9EA}', name:'HP Potion', desc:'Heals 50 HP. For when the System hurts you. Owned \u00D7' + state.inventory.hpPotion + '.',
+    { vis:'flask', name:'HP Potion', desc:'Heals 50 HP. For when the System hurts you. Owned \u00D7' + state.inventory.hpPotion + '.',
       b1:{t: state.gold >= 100 ? 'Buy \u00B7 100' : '100 \u25C8', d: state.gold < 100}, id:'potion',
       b2:{t:'Drink', d: state.inventory.hpPotion <= 0}, id2:'drink' },
   ];
@@ -1162,10 +1173,10 @@ function renderShop(){
     '<button class="btn small" data-shop="' + it.id + '"' + (it.b1.d ? ' disabled' : '') + '>' + it.b1.t + '</button>' +
     (it.b2 ? '<button class="btn small ghost" data-shop="' + it.id2 + '"' + (it.b2.d ? ' disabled' : '') + '>' + it.b2.t + '</button>' : '');
   const supplyHtml = state.viewModes.shop === 'list'
-    ? supply.map(it => '<div class="shop-row"><div class="sri">' + it.icon + '</div>' +
+    ? supply.map(it => '<div class="shop-row"><div class="sri">' + supplyVisual(it.vis, true) + '</div>' +
         '<div class="srm"><b>' + esc(it.name) + '</b><small>' + esc(it.desc) + '</small></div>' +
         '<div class="sc-actions">' + cardBtns(it) + '</div></div>').join('')
-    : supply.map(it => '<div class="shop-card"><div class="sc-icon">' + it.icon + '</div>' +
+    : supply.map(it => '<div class="shop-card"><div class="sc-icon">' + supplyVisual(it.vis) + '</div>' +
         '<div class="sc-name">' + esc(it.name) + '</div><div class="sc-desc">' + esc(it.desc) + '</div>' +
         '<div class="sc-actions">' + cardBtns(it) + '</div></div>').join('');
   el('view-shop').innerHTML = `
@@ -1646,7 +1657,7 @@ function openChest(free){
     state.freeSupplyDay = todayStr();
     state.gold += amt; state.totalGold += amt;
     save(); renderAll(); sfxBadge();
-    showChestResult({ icon:'🎁', title:'Free Supply', desc: amt + ' ◈ gold from the System.', sub:'One free supply every day.' });
+    showChestResult({ visual: supplyVisual('bag'), tier:'common', title:'Free Supply', desc: amt + ' ◈ gold from the System.', sub:'One free supply every day.' });
     return;
   }
   if(state.gold < 60){ toast('Not enough gold for a Mystery Chest (60 ◈).'); return; }
@@ -1659,15 +1670,31 @@ function openChest(free){
     if(after.level > before.level) levelUpFX(before.level, after.level, rankAtExp(before.exp), rankAtExp(state.exp));
   }
   save(); renderAll(); sfxLevelUp();
-  showChestResult({ icon: res.icon, title:'Mystery Chest', desc: res.desc, sub:'Drops: gold · EXP · potions · savers · sigils · titles' });
+  showChestResult({ visual: dropVisual(res.type), tier: dropTier(res.type, res.amount), title:'Mystery Chest', desc: res.desc, sub:'Drops: gold · EXP · potion · saver · title' });
 }
 
+function dropVisual(type){
+  const map = { gold:'bag', exp:'spark', potion:'flask', saver:'ice', title:'gem' };
+  return supplyVisual(map[type] || 'bag');
+}
+function dropTier(type, amount){
+  if(type === 'saver' || type === 'title') return 'epic';
+  if(type === 'potion') return 'rare';
+  if(type === 'gold') return (amount || 0) >= 40 ? 'rare' : 'common';
+  return 'common';
+}
 function showChestResult(r){
-  el('chestIcon').textContent = r.icon;
+  el('chestIcon').innerHTML = r.visual || (r.icon || '');
   el('chestTitle').textContent = r.title;
   el('chestDesc').textContent = r.desc;
   el('chestSub').textContent = r.sub || '';
-  show(el('chestModal'));
+  const m = el('chestModal');
+  m.classList.remove('t-common', 't-rare', 't-epic');
+  if(r.tier) m.classList.add('t-' + r.tier);
+  if(r.tier === 'epic') sfxEpic();
+  else if(r.tier === 'rare') sfxRare();
+  else sfxChestOpen();
+  show(m);
 }
 
 /* ---------------- daily crates (challenges) ---------------- */
@@ -1682,7 +1709,7 @@ function crateReset(){
       const res = rollCrateReward(old.tier);
       if(res.type === 'exp') state.exp += res.amount;
       save();
-      toast(CRATES[old.tier].icon + ' Last night\'s ' + CRATES[old.tier].name + ' was collected: ' + res.desc);
+      toast("Last night's " + CRATES[old.tier].name + ' was collected: ' + res.desc);
     }
   }
 }
@@ -1698,7 +1725,7 @@ function chooseCrate(tier){
     perfect: (state.perfect && state.perfect.d === periodFor('daily')) ? 1 : 0,
   };
   save(); renderAll();
-  toast('\u{1F4E6} ' + CRATES[tier].name + ' locked in: ' + CRATES[tier].desc);
+  toast(CRATES[tier].name + ' locked in: ' + CRATES[tier].desc + ' — the clock starts now.');
   crateBump();
 }
 
@@ -1712,7 +1739,7 @@ function crateBump(){
   if(ok){
     c.done = true;
     save(); renderAll(); sfxLevelUp();
-    toast(CRATES[c.tier].icon + ' ' + CRATES[c.tier].name + ' UNLOCKED — open it in the Crates tab to collect your reward!');
+    toast(CRATES[c.tier].name + ' UNLOCKED — open it in the Crates tab to collect your reward!');
   } else {
     save();
   }
@@ -1730,7 +1757,7 @@ function claimCrate(){
   }
   c.claimed = true;
   save(); renderAll(); sfxLevelUp();
-  showChestResult({ icon: CRATES[c.tier].icon, title: CRATES[c.tier].name + ' \u2014 UNLOCKED', desc: res.desc, sub: CRATES[c.tier].desc });
+  showChestResult({ visual: crateVisual(c.tier), tier: dropTier(res.type, res.amount), title: CRATES[c.tier].name + ' \u2014 UNLOCKED', desc: res.desc, sub: CRATES[c.tier].desc });
 }
 
 function rollCrateReward(tier){
@@ -1918,6 +1945,22 @@ function floatText(txt, x, y, style = ''){
   setTimeout(() => d.remove(), 1200);
 }
 
+/* drawn visuals (no emoji — like PUBG / Duolingo artwork) */
+function crateVisual(tier, sm){ return '<div class="cv cv-crate cv-' + tier + (sm ? ' sm' : '') + '"><i class="cv-band"></i><i class="cv-lock"></i></div>'; }
+function supplyVisual(kind, sm){ return '<div class="cv cv-' + kind + (sm ? ' sm' : '') + '"></div>'; }
+function flameTier(s){ s = Math.max(0, s | 0); return s >= 30 ? 5 : s >= 14 ? 4 : s >= 7 ? 3 : s >= 3 ? 2 : 1; }
+
+/* the System talks back */
+function systemGreeting(){
+  const h = new Date().getHours();
+  if(state.streak >= 3) return state.streak + ' days in a row. The System is watching \u2014 impressed.';
+  if(h < 6) return 'You open me before the world wakes. Arise, early.';
+  if(state.hp < maxHp() * .4) return 'Your HP is low. The System watches you carefully.';
+  if(state.crates && state.crates.done && !state.crates.claimed) return 'A crate waits to be opened. Claim it.';
+  const lines = ['Only you level up.', 'The System does not negotiate. But it keeps the score.', 'Every quest is a wall the darkness cannot cross.', 'Monarchs are made on ordinary days.', 'The dungeon is life. Enter anyway.'];
+  return lines[Math.floor(Date.now() / 86400000) % lines.length];
+}
+
 let toastTimer = null;
 function toast(msg){
   const t = el('toast');
@@ -1972,6 +2015,10 @@ async function drawCardCanvas(){
   g.addColorStop(0, 'rgba(56,189,248,.16)');
   g.addColorStop(1, 'rgba(56,189,248,0)');
   x.fillStyle = g; x.fillRect(0, 0, W, H);
+  const g2 = x.createRadialGradient(W / 2, H, 50, W / 2, H, 720);
+  g2.addColorStop(0, 'rgba(251,191,36,.12)');
+  g2.addColorStop(1, 'rgba(251,191,36,0)');
+  x.fillStyle = g2; x.fillRect(0, 0, W, H);
 
   x.strokeStyle = 'rgba(56,189,248,.5)'; x.lineWidth = 2;
   roundRect(x, 26, 26, W - 52, H - 52, 20); x.stroke();
@@ -2018,6 +2065,21 @@ async function drawCardCanvas(){
   x.shadowBlur = 0;
   x.font = '800 30px system-ui'; x.fillStyle = rankColor(rank);
   x.fillText(rank + ' RANK', W / 2, 595);
+  const se = seasonInfo();
+  x.font = '700 17px system-ui'; x.fillStyle = 'rgba(251,191,36,.85)';
+  x.fillText('SEASON ' + se.num, W / 2, 628);
+  const fsize = 14 + flameTier(state.streak) * 5;
+  x.save();
+  x.shadowColor = 'rgba(251,146,60,.9)'; x.shadowBlur = 20;
+  x.fillStyle = 'rgba(249,115,22,.92)';
+  x.beginPath(); x.ellipse(W - 118, 520, fsize * .6, fsize, 0, 0, Math.PI * 2); x.fill();
+  x.restore();
+  x.fillStyle = 'rgba(253,224,71,.95)';
+  x.beginPath(); x.ellipse(W - 118, 526, fsize * .32, fsize * .5, 0, 0, Math.PI * 2); x.fill();
+  x.font = '800 26px system-ui'; x.fillStyle = '#fbbf24';
+  x.fillText(state.streak, W - 118, 468);
+  x.font = '600 13px system-ui'; x.fillStyle = '#7d8db0';
+  x.fillText('STREAK', W - 118, 585);
 
   cardBar(x, 80, 660, W - 160, 16, into / needed, 'rgba(56,189,248,.95)', 'EXP  ' + fmt(into) + ' / ' + fmt(needed));
   cardBar(x, 80, 730, W - 160, 16, state.hp / maxHp(), 'rgba(248,113,113,.95)', 'HP  ' + Math.round(state.hp) + ' / ' + maxHp());
@@ -2035,8 +2097,7 @@ async function drawCardCanvas(){
 
   x.textAlign = 'center';
   x.font = '600 22px system-ui'; x.fillStyle = '#7d8db0';
-  x.fillText('🔥 ' + state.streak + ' streak    ⭐ ' + fmt(state.totalQuests) + ' quests    🏅 ' +
-    state.badges.length + ' badges    🐉 ' + (state.bossKills || 0) + ' bosses', W / 2, 940);
+  x.fillText(fmt(state.totalQuests) + ' quests    ' + state.badges.length + ' badges    ' + (state.bossKills || 0) + ' bosses', W / 2, 940);
   x.font = '400 17px system-ui'; x.fillStyle = 'rgba(125,141,176,.55)';
   x.fillText(new Date().toLocaleDateString(), W / 2, 972);
 
@@ -2096,9 +2157,13 @@ function tone(freq, dur, { type='sine', gain=0.12, delay=0 } = {}){
   }catch(e){}
 }
 
-function sfxCheckIn(){ tone(660, .09, { gain:.1 }); tone(990, .12, { gain:.1, delay:.07 }); }
-function sfxLevelUp(){ [523, 659, 784, 1047].forEach((f, i) => tone(f, .22, { gain:.12, delay:i*.09, type:'triangle' })); }
-function sfxBadge(){ tone(1200, .15, { gain:.08, type:'triangle' }); }
+function buzz(p){ try{ if(navigator && navigator.vibrate) navigator.vibrate(p); }catch(e){} }
+function sfxCheckIn(){ tone(660, .09, { gain:.1 }); tone(990, .12, { gain:.1, delay:.07 }); tone(1320, .1, { gain:.07, delay:.15, type:'triangle' }); buzz(30); }
+function sfxLevelUp(){ [523, 659, 784, 1047, 1568].forEach((f, i) => tone(f, .24, { gain:.12, delay:i*.09, type:'triangle' })); buzz([70, 40, 100]); }
+function sfxBadge(){ tone(1200, .15, { gain:.08, type:'triangle' }); buzz(25); }
+function sfxRare(){ [784, 1047, 1568].forEach((f, i) => tone(f, .2, { gain:.1, delay:i*.07, type:'triangle' })); buzz(50); }
+function sfxEpic(){ [523, 659, 784, 1047, 1318].forEach((f, i) => tone(f, .3, { gain:.09, delay:i*.08, type:'sawtooth' })); tone(2093, .5, { gain:.05, delay:.45 }); buzz([60, 50, 110]); }
+function sfxChestOpen(){ tone(150, .12, { gain:.13, type:'square' }); tone(523, .25, { gain:.07, delay:.12 }); buzz(40); }
 
 /* ---------------- tabs ---------------- */
 
@@ -2181,6 +2246,9 @@ function init(){
     el('app').classList.remove('hidden');
     renderAll();
     maybeBlessing(1500);
+    setTimeout(() => toast('THE SYSTEM: ' + systemGreeting()), 1100);
+    const remD = state.quests.filter(q => q.freq === 'daily' && q.timesDone < q.dailyLimit).length;
+    if(new Date().getHours() >= 18 && remD) setTimeout(() => toast('The fire is still burning — ' + remD + ' check-in' + (remD > 1 ? 's' : '') + ' left to keep it alive.'), 3400);
   }
 
   el('tabbar').querySelectorAll('.tab').forEach(t =>
