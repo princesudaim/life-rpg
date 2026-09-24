@@ -164,7 +164,9 @@ function defaultState(){
     day: todayStr(),
     view:'character',
     perfect:{},
-    inventory:{ streakSaver:0, hpPotion:0 },
+    inventory:{ streakSaver:0, hpPotion:0, xpPotion:0, armor:0, salmon:0, seerStone:0, frozenFlame:0 },
+    xpMultiplier:0,
+    streakFrozenDays:0,
     lastBlessingDay:null,
     missions:{ day:null, list:[] },
     crates:{ day:null, tier:null, progress:{quests:0,exp:0,perfect:0}, done:false, claimed:false },
@@ -200,9 +202,12 @@ function migrate(s){
   s.stats = Object.assign({ STR:0, INT:0, VIT:0, CHA:0 }, s.stats || {});
   s.perfect = Object.assign({}, s.perfect || {});
   if(!s.class) s.class = 'warrior';
-  s.inventory = Object.assign({ streakSaver:0, hpPotion:0 }, s.inventory || {});
-  s.inventory.streakSaver = Math.max(0, Math.floor(Number(s.inventory.streakSaver) || 0));
-  s.inventory.hpPotion = Math.max(0, Math.floor(Number(s.inventory.hpPotion) || 0));
+  s.inventory = Object.assign({ streakSaver:0, hpPotion:0, xpPotion:0, armor:0, salmon:0, seerStone:0, frozenFlame:0 }, s.inventory || {});
+  for(const k of ['streakSaver', 'hpPotion', 'xpPotion', 'armor', 'salmon', 'seerStone', 'frozenFlame']){
+    s.inventory[k] = Math.max(0, Math.floor(Number(s.inventory[k]) || 0));
+  }
+  s.xpMultiplier = Math.max(0, Math.floor(Number(s.xpMultiplier) || 0));
+  s.streakFrozenDays = Math.max(0, Math.floor(Number(s.streakFrozenDays) || 0));
   if(!['character','quests','crates','log','shop','settings'].includes(s.view)) s.view = 'character';
   if(!isFinite(Number(s.bestStreak))) s.bestStreak = 0;
   s.lastBlessingDay = (s.lastBlessingDay === null || typeof s.lastBlessingDay === 'string') ? s.lastBlessingDay : null;
@@ -266,9 +271,12 @@ function sanitize(d){
   d.streak = Math.max(0, Number(d.streak) || 0);
   d.bossKills = Math.max(0, Number(d.bossKills) || 0);
   d.bestStreak = Math.max(0, Number(d.bestStreak) || 0);
-  d.inventory = Object.assign({ streakSaver:0, hpPotion:0 }, d.inventory || {});
-  d.inventory.streakSaver = Math.max(0, Math.floor(Number(d.inventory.streakSaver) || 0));
-  d.inventory.hpPotion = Math.max(0, Math.floor(Number(d.inventory.hpPotion) || 0));
+  d.inventory = Object.assign({ streakSaver:0, hpPotion:0, xpPotion:0, armor:0, salmon:0, seerStone:0, frozenFlame:0 }, d.inventory || {});
+  for(const k of ['streakSaver', 'hpPotion', 'xpPotion', 'armor', 'salmon', 'seerStone', 'frozenFlame']){
+    d.inventory[k] = Math.max(0, Math.floor(Number(d.inventory[k]) || 0));
+  }
+  d.xpMultiplier = Math.max(0, Math.floor(Number(d.xpMultiplier) || 0));
+  d.streakFrozenDays = Math.max(0, Math.floor(Number(d.streakFrozenDays) || 0));
   d.lastBlessingDay = (d.lastBlessingDay === null || typeof d.lastBlessingDay === 'string') ? d.lastBlessingDay : null;
   d.lastQuestDay = typeof d.lastQuestDay === 'string' ? d.lastQuestDay : null;
   if(!['character','quests','crates','log','shop','settings'].includes(d.view)) d.view = 'character';
@@ -553,10 +561,23 @@ function rollover(){
   if(state.day !== t){
     if(state.lastQuestDay !== yesterdayStr()){
       const pen = state.settings.hpPenalty;
-      if(state.inventory.streakSaver > 0){
+      if(state.inventory.frozenFlame > 0){
+        state.inventory.frozenFlame--;
+        state.streakFrozenDays = (state.streakFrozenDays || 0) + 3;
+        state.lastQuestDay = yesterdayStr();
+        toast('❄️ Frozen Flame activated! Streak guarded for 4 full days.');
+      } else if(state.streakFrozenDays > 0){
+        state.streakFrozenDays--;
+        state.lastQuestDay = yesterdayStr();
+        toast('❄️ Frozen Flame vacation shield active — streak protected.');
+      } else if(state.inventory.streakSaver > 0){
         state.inventory.streakSaver--;
         state.lastQuestDay = yesterdayStr();
         toast('🧊 Streak Saver activated — your streak is frozen. That day does not count.');
+      } else if(state.inventory.armor > 0){
+        state.inventory.armor--;
+        if(state.streak > 1) toast('🛡️ System Armor absorbed the hit! HP protected.');
+        state.streak = 0;
       } else {
         if(state.streak > 1) toast('💤 Streak broken. The System deducts ' + pen + ' HP.');
         state.streak = 0;
@@ -598,19 +619,25 @@ function touchStreak(){
 /* ---------------- core reward engine ---------------- */
 
 function applyReward({ exp, gold = 0, name, icon, statKey = null, ev = null }){
+  let awardExp = exp;
+  if(state.xpMultiplier > 0){
+    awardExp = exp * 2;
+    state.xpMultiplier--;
+    if(ev) floatText('🔥 2× XP BOOST (' + state.xpMultiplier + ' left)', ev.clientX, ev.clientY - 24, 'gold');
+  }
   const before = levelFromExp(state.exp);
   const prevRank = rankAtExp(state.exp);
 
-  state.exp += exp;
+  state.exp += awardExp;
   state.gold += gold;
   state.totalGold += gold;
   state.totalQuests++;
   state.dayQuests++;
-  state.dayExp = (state.dayExp || 0) + exp;
+  state.dayExp = (state.dayExp || 0) + awardExp;
   state.bestQuestsDay = Math.max(state.bestQuestsDay || 0, state.dayQuests);
-  if(statKey) state.stats[statKey] += statPoints(exp);
+  if(statKey) state.stats[statKey] += statPoints(awardExp);
   state.hp = Math.min(maxHp(), state.hp + state.settings.hpHeal);
-  state.log.unshift({ ts:Date.now(), name, icon:icon || '⭐', exp, gold });
+  state.log.unshift({ ts:Date.now(), name, icon:icon || '⭐', exp:awardExp, gold });
   state.log = state.log.slice(0, 500);
   touchStreak();
 
@@ -621,7 +648,7 @@ function applyReward({ exp, gold = 0, name, icon, statKey = null, ev = null }){
   renderAll();
 
   if(ev){
-    floatText('+' + exp + ' EXP', ev.clientX, ev.clientY);
+    floatText('+' + awardExp + ' EXP', ev.clientX, ev.clientY);
     if(gold > 0) floatText('+' + gold + ' ◈', ev.clientX, ev.clientY + 24, 'gold');
   }
   sfxCheckIn();
@@ -1110,9 +1137,9 @@ function daysLeft(freq){
 function questCard(q){
   const done = q.timesDone >= q.dailyLimit;
   return `
-  <div class="quest ${done ? 'is-done' : ''}">
-    <div class="q-icon">${esc(q.icon || '⭐')}</div>
-    <div class="q-meta" data-q="${q.id}">
+  <div class="quest ${done ? 'is-done' : ''}" data-check-q="${q.id}">
+    <div class="q-icon" data-edit-q="${q.id}" title="Tap icon to customize">${esc(q.icon || '⭐')}</div>
+    <div class="q-meta">
       <div class="q-name">${esc(q.name)}</div>
       <div class="q-sub">+${q.exp} EXP · +${q.gold} ◈${q.dailyLimit > 1 ? ' · ' + q.timesDone + '/' + q.dailyLimit : ''}${q.freq !== 'daily' ? ` · <span class="q-days">${daysLeft(q.freq)}d left</span>` : ''}</div>
     </div>
@@ -1172,32 +1199,35 @@ function systemCard(){
 }
 
 function questPath(){
-  const cats = [['Body', '\u{1F4AA}'], ['Mind', '\u{1F9E0}'], ['Discipline', '\u{1F3F3}'], ['Social', '\u{1F91D}\uFE0F'], ['Other', '\u2B50']];
   const dailies = state.quests.filter(q => q.freq === 'daily');
-  const sections = cats.map(([c, ic]) => {
-    const group = dailies.filter(q => q.category === c);
-    if(!group.length) return '';
-    const done = group.filter(q => q.timesDone >= q.dailyLimit).length;
-    const shown = state.settings.hideCompleted ? group.filter(q => q.timesDone < q.dailyLimit) : group;
-    const nodes = shown.map(q => {
-      const isDone = q.timesDone >= q.dailyLimit;
-      return `<div class="qg-card ${isDone ? 'done' : ''}" data-q="${q.id}">
-        <div class="qg-top"><span class="qg-ic">${esc(q.icon)}</span><span class="qg-name">${esc(q.name)}${q.dailyLimit > 1 ? ` <small>(${q.timesDone}/${q.dailyLimit})</small>` : ''}</span></div>
-        <div class="qg-sub">+${q.exp} EXP \u00B7 +${q.gold} \u25C8</div>
-        <button class="check-btn qg-btn" data-q="${q.id}" ${isDone ? 'disabled' : ''}>${isDone ? '\u2713 Done' : 'Check In'}</button>
-      </div>`;
-    }).join('');
-    return `<div class="path-section">
-      <div class="path-head"><span class="path-cat">${ic} ${c}</span><span class="g-count">${done}/${group.length}</span></div>
-      <div class="qgrid">${nodes || '<div class="qgrid-empty">✓ All done for today</div>'}</div>
+  if(!dailies.length) return '';
+  const shown = state.settings.hideCompleted ? dailies.filter(q => q.timesDone < q.dailyLimit) : dailies;
+  const nodes = shown.map(q => {
+    const isDone = q.timesDone >= q.dailyLimit;
+    return `
+    <div class="qg-card ${isDone ? 'done' : ''}" data-check-q="${q.id}">
+      <div class="qg-top">
+        <span class="qg-ic" data-edit-q="${q.id}" title="Tap icon to customize">${esc(q.icon || '⭐')}</span>
+        <span class="qg-name">${esc(q.name)}${q.dailyLimit > 1 ? ` <small>(${q.timesDone}/${q.dailyLimit})</small>` : ''}</span>
+      </div>
+      <div class="qg-sub">+${q.exp} EXP · +${q.gold} ◈</div>
+      <button class="check-btn qg-btn" data-q="${q.id}" ${isDone ? 'disabled' : ''}>${isDone ? '✓ Done' : 'Check In'}</button>
     </div>`;
   }).join('');
+
+  const doneCount = dailies.filter(q => q.timesDone >= q.dailyLimit).length;
   const others = state.quests.filter(q => q.freq !== 'daily');
-  const chapters = others.length ? `<div class="sys-window" style="margin-top:14px">
-      <div class="win-bar"><span class="win-title">Chapters</span><span class="win-sub">weekly &amp; monthly \u00B7 ${others.length} quests</span></div>
+  const chapters = others.length ? `
+    <div class="sys-window" style="margin-top:14px">
+      <div class="win-bar"><span class="win-title">Chapters</span><span class="win-sub">weekly &amp; monthly · ${others.length} quests</span></div>
       <div class="win-body">${others.map(questCard).join('')}</div>
     </div>` : '';
-  return sections + chapters;
+
+  return `
+    <div class="path-section">
+      <div class="path-head"><span class="path-cat">Daily Quests</span><span class="g-count">${doneCount}/${dailies.length}</span></div>
+      <div class="qgrid">${nodes || '<div class="qgrid-empty">✓ All done for today</div>'}</div>
+    </div>${chapters}`;
 }
 
 function renderQuests(){
@@ -1213,19 +1243,38 @@ function renderQuests(){
         ${usePath
           ? (questPath() || '<div class="empty">No daily quests yet \u2014 tap "+ New".</div>')
           : (questGroup('daily', 'Daily') + questGroup('weekly', 'Weekly') + questGroup('monthly', 'Monthly'))}
-        <p class="board-hint">tap a quest to edit it</p>
+        <p class="board-hint">tap icon to customize · tap card or button to check in</p>
       </div>
     </div>`;
 
-  document.querySelectorAll('.check-btn').forEach(b =>
-    b.addEventListener('click', e => checkIn(b.dataset.q, e)));
-  document.querySelectorAll('.q-meta[data-q]').forEach(m =>
-    m.addEventListener('click', () => openQuestEditor(m.dataset.q)));
-  document.querySelectorAll('.qg-card[data-q]').forEach(m =>
-    m.addEventListener('click', e => {
+  // 1. ONLY clicking/tapping the icon opens customization!
+  document.querySelectorAll('[data-edit-q]').forEach(ic => {
+    ic.addEventListener('click', e => {
+      e.stopPropagation();
+      openQuestEditor(ic.dataset.editQ);
+    });
+  });
+
+  // 2. Button check-in
+  document.querySelectorAll('.check-btn').forEach(b => {
+    b.addEventListener('click', e => {
+      e.stopPropagation();
+      checkIn(b.dataset.q, e);
+    });
+  });
+
+  // 3. BIG HITBOX: tapping the card / text also checks in!
+  document.querySelectorAll('[data-check-q]').forEach(card => {
+    card.addEventListener('click', e => {
+      if(e.target.closest('[data-edit-q]')) return;
       if(e.target.closest('.check-btn')) return;
-      openQuestEditor(m.dataset.q);
-    }));
+      const qid = card.dataset.checkQ;
+      const q = state.quests.find(x => x.id === qid);
+      if(q && q.timesDone < q.dailyLimit){
+        checkIn(qid, e);
+      }
+    });
+  });
   el('addQuestBtn').addEventListener('click', () => openQuestEditor(null));
   el('bossHitBtn').addEventListener('click', e => bossHit(e));
   el('bossEditBtn').addEventListener('click', () => openBossEditor());
@@ -1304,14 +1353,26 @@ function renderLog(){
 }
 
 function renderShop(){
-  const items = state.rewards.map(r => `
-    <div class="reward">
+  const isGrid = state.viewModes.shop === 'grid';
+
+  const items = state.rewards.map(r => isGrid ? `
+    <div class="shop-card reward-card" data-r="${r.id}">
+      <div class="sc-icon">${esc(r.icon || '🎁')}</div>
+      <div class="sc-name">${esc(r.name)}</div>
+      <div class="sc-desc">${r.cost} ◈</div>
+      <div class="sc-actions">
+        <button class="buy-btn btn small ${state.gold < r.cost ? 'ghost' : 'primary'}" data-r="${r.id}" ${state.gold < r.cost ? 'disabled' : ''}>
+          ${state.gold >= r.cost ? 'Redeem' : r.cost + ' ◈'}
+        </button>
+      </div>
+    </div>` : `
+    <div class="reward" data-r="${r.id}">
       <div class="r-icon">${esc(r.icon || '🎁')}</div>
-      <div class="q-meta" data-r="${r.id}">
+      <div class="q-meta">
         <div class="q-name">${esc(r.name)}</div>
         <div class="q-sub"><span>cost ${r.cost} ◈</span></div>
       </div>
-      <button class="buy-btn" data-r="${r.id}" ${state.gold < r.cost ? 'disabled' : ''}>
+      <button class="buy-btn btn small ${state.gold < r.cost ? 'ghost' : 'primary'}" data-r="${r.id}" ${state.gold < r.cost ? 'disabled' : ''}>
         ${state.gold >= r.cost ? 'Redeem' : 'Need ' + r.cost + ' ◈'}
       </button>
     </div>`).join('') || '<div class="empty">No rewards yet. Add one — what do you allow yourself to earn?</div>';
@@ -1323,55 +1384,72 @@ function renderShop(){
       <div class="log-date">${d.toLocaleDateString()}</div></div>`;
   }).join('') || '<div class="empty">Nothing redeemed yet. Earn gold, then claim what you deserve.</div>';
 
+  const inv = state.inventory || {};
   const supply = [
-    { vis:'bag', name:'Free Supply', desc:'10\u201330 \u25C8, once per day. The System\'s daily gift.',
+    { vis:'bag', name:'Free Supply', desc:'10–30 ◈ daily gift.',
       b1:{t: state.freeSupplyDay === todayStr() ? 'Tomorrow' : 'Claim', d: state.freeSupplyDay === todayStr()}, id:'free' },
-    { vis:'chest', name:'Mystery Chest', desc:'Random drop: gold \u00B7 EXP \u00B7 potion \u00B7 saver \u00B7 new title.',
-      b1:{t: state.gold >= 60 ? 'Open \u00B7 60' : '60 \u25C8', d: state.gold < 60}, id:'chest' },
-    { vis:'ice', name:'Streak Saver', desc:'Miss a day? Your streak FREEZES instead of breaking. Owned \u00D7' + state.inventory.streakSaver + '.',
-      b1:{t: state.gold >= 150 ? 'Buy \u00B7 150' : '150 \u25C8', d: state.gold < 150}, id:'saver' },
-    { vis:'flask', name:'HP Potion', desc:'Heals 50 HP. For when the System hurts you. Owned \u00D7' + state.inventory.hpPotion + '.',
-      b1:{t: state.gold >= 100 ? 'Buy \u00B7 100' : '100 \u25C8', d: state.gold < 100}, id:'potion',
-      b2:{t:'Drink', d: state.inventory.hpPotion <= 0}, id2:'drink' },
+    { vis:'chest', name:'Mystery Chest', desc:'Random drops: gold, EXP, powerups, titles.',
+      b1:{t: state.gold >= 60 ? 'Open · 60' : '60 ◈', d: state.gold < 60}, id:'chest' },
+    { vis:'xp', name:'XP Potion', desc:'2× XP for next 3 quests. Owned ×' + (inv.xpPotion || 0) + (state.xpMultiplier ? ' (ACTIVE ×' + state.xpMultiplier + ')' : '') + '.',
+      b1:{t: state.gold >= 50 ? 'Buy · 50' : '50 ◈', d: state.gold < 50}, id:'buy-xpPotion',
+      b2:{t:'Drink', d:(inv.xpPotion || 0) <= 0}, id2:'use-xpPotion' },
+    { vis:'salmon', name:'Baked Salmon', desc:'Restores +40 HP & +20 EXP energy. Owned ×' + (inv.salmon || 0) + '.',
+      b1:{t: state.gold >= 30 ? 'Buy · 30' : '30 ◈', d: state.gold < 30}, id:'buy-salmon',
+      b2:{t:'Eat', d:(inv.salmon || 0) <= 0}, id2:'eat-salmon' },
+    { vis:'armor', name:'System Armor', desc:'Shields HP & penalties on missed days. Owned ×' + (inv.armor || 0) + '.',
+      b1:{t: state.gold >= 80 ? 'Buy · 80' : '80 ◈', d: state.gold < 80}, id:'buy-armor' },
+    { vis:'seer', name:'Seer Stone', desc:'Auto-completes 1 stuck daily quest. Owned ×' + (inv.seerStone || 0) + '.',
+      b1:{t: state.gold >= 90 ? 'Buy · 90' : '90 ◈', d: state.gold < 90}, id:'buy-seer',
+      b2:{t:'Use', d:(inv.seerStone || 0) <= 0}, id2:'use-seer' },
+    { vis:'frozen-flame', name:'Frozen Flame', desc:'Guards streak for 4 FULL DAYS when resting. Owned ×' + (inv.frozenFlame || 0) + (state.streakFrozenDays ? ' (' + state.streakFrozenDays + 'd shield)' : '') + '.',
+      b1:{t: state.gold >= 180 ? 'Buy · 180' : '180 ◈', d: state.gold < 180}, id:'buy-frozenFlame' },
+    { vis:'ice', name:'Streak Saver', desc:'1-day auto streak freeze. Owned ×' + (inv.streakSaver || 0) + '.',
+      b1:{t: state.gold >= 150 ? 'Buy · 150' : '150 ◈', d: state.gold < 150}, id:'saver' },
+    { vis:'flask', name:'HP Potion', desc:'Heals 50 HP. Owned ×' + (inv.hpPotion || 0) + '.',
+      b1:{t: state.gold >= 100 ? 'Buy · 100' : '100 ◈', d: state.gold < 100}, id:'potion',
+      b2:{t:'Drink', d:(inv.hpPotion || 0) <= 0}, id2:'drink' },
   ];
+
   const cardBtns = it =>
-    '<button class="btn small" data-shop="' + it.id + '"' + (it.b1.d ? ' disabled' : '') + '>' + it.b1.t + '</button>' +
+    '<button class="btn small primary" data-shop="' + it.id + '"' + (it.b1.d ? ' disabled' : '') + '>' + it.b1.t + '</button>' +
     (it.b2 ? '<button class="btn small ghost" data-shop="' + it.id2 + '"' + (it.b2.d ? ' disabled' : '') + '>' + it.b2.t + '</button>' : '');
-  const supplyHtml = state.viewModes.shop === 'list'
+
+  const supplyHtml = (state.viewModes.shop === 'list')
     ? supply.map(it => '<div class="shop-row"><div class="sri">' + supplyVisual(it.vis, true) + '</div>' +
-        '<div class="srm"><b>' + esc(it.name) + '</b><small>' + esc(it.desc) + '</small></div>' +
+        '<div class="srm"><b>' + esc(it.name) + '</b><small>' + it.desc + '</small></div>' +
         '<div class="sc-actions">' + cardBtns(it) + '</div></div>').join('')
     : supply.map(it => '<div class="shop-card"><div class="sc-icon">' + supplyVisual(it.vis) + '</div>' +
         '<div class="sc-name">' + esc(it.name) + '</div><div class="sc-desc">' + esc(it.desc) + '</div>' +
         '<div class="sc-actions">' + cardBtns(it) + '</div></div>').join('');
+
   el('view-shop').innerHTML = `
     <div class="sys-window">
       <div class="win-bar"><span class="win-title">Reward Market</span>
         <button class="mini-btn" id="addRewardBtn">+ New</button></div>
       <div class="win-body">
         <div class="gold-note">Your gold: <b>${fmt(state.gold)} ◈</b> — earn it from quests, spend it on REAL rewards.</div>
-        ${items}
+        <div class="${isGrid ? 'shop-grid-cards' : 'reward-list'}">${items}</div>
       </div>
     </div>
     <div class="sys-window" style="margin-top:14px">
-      <div class="win-bar"><span class="win-title">Supply Drop</span><span class="win-sub">chests & power-ups \u00B7 use the layout button up top</span></div>
+      <div class="win-bar"><span class="win-title">Supply Drop & Power-ups</span><span class="win-sub">use layout button up top</span></div>
       <div class="win-body" style="padding-top:8px">
-        <div class="${state.viewModes.shop === 'list' ? 'shop-list' : 'shop-grid-cards'}">${supplyHtml}</div>
+        <div class="${isGrid ? 'shop-grid-cards' : 'shop-list'}">${supplyHtml}</div>
       </div>
     </div>
-        <div class="sys-window" style="margin-top:14px">
-      <div class="win-bar"><span class="win-title">Badge Collection</span><span class="win-sub">${state.badges.length}/${BADGES.length} badges \u00B7 ${state.collection.titles.length} titles</span></div>
+    <div class="sys-window" style="margin-top:14px">
+      <div class="win-bar"><span class="win-title">Badge Collection</span><span class="win-sub">${state.badges.length}/${BADGES.length} badges · ${state.collection.titles.length} titles</span></div>
       <div class="win-body" style="padding-top:8px">
         <div class="col-badges">${BADGES.map(b => {
           const owned = state.badges.includes(b.id);
           return owned
             ? `<span class="col-badge" title="${esc(b.desc)}">${b.icon}<small>${esc(b.name)}</small></span>`
-            : `<span class="col-badge locked" title="Locked \u2014 ${esc(b.desc)}">\u2753<small>Locked</small></span>`;
+            : `<span class="col-badge locked" title="Locked — ${esc(b.desc)}">❓<small>Locked</small></span>`;
         }).join('')}</div>
         <div class="col-titles">
           ${state.collection.titles.length ? state.collection.titles.map(t =>
-            `<button class="col-title ${state.activeTitle === t ? 'worn' : ''}" data-t="${esc(t)}">\u25C6 ${esc(t)}${state.activeTitle === t ? ' \u00B7 worn' : ''}</button>`).join('')
-          : '<div class="hint">No bonus titles yet \u2014 Mystery Chests can grant them. Your level title is automatic.</div>'}
+            `<button class="col-title ${state.activeTitle === t ? 'worn' : ''}" data-t="${esc(t)}">◆ ${esc(t)}${state.activeTitle === t ? ' · worn' : ''}</button>`).join('')
+          : '<div class="hint">No bonus titles yet — Mystery Chests can grant them. Your level title is automatic.</div>'}
         </div>
       </div>
     </div>
@@ -1380,11 +1458,16 @@ function renderShop(){
       <div class="win-body" style="padding-top:6px">${bought}</div>
     </div>`;
 
-  document.querySelectorAll('.buy-btn').forEach(b =>
-    b.addEventListener('click', e => buyReward(b.dataset.r, e)));
-  document.querySelectorAll('.q-meta[data-r]').forEach(m =>
-    m.addEventListener('click', () => openRewardEditor(m.dataset.r)));
+  document.querySelectorAll('.buy-btn[data-r]').forEach(b =>
+    b.addEventListener('click', e => { e.stopPropagation(); buyReward(b.dataset.r, e); }));
+  document.querySelectorAll('[data-r]').forEach(m => {
+    m.addEventListener('click', e => {
+      if(e.target.closest('.buy-btn')) return;
+      openRewardEditor(m.dataset.r);
+    });
+  });
   el('addRewardBtn').addEventListener('click', () => openRewardEditor(null));
+
   document.querySelectorAll('#view-shop [data-shop]').forEach(b => b.addEventListener('click', () => {
     const a = b.dataset.shop;
     if(a === 'free') openChest(true);
@@ -1398,7 +1481,37 @@ function renderShop(){
       save(); renderAll(); sfxCheckIn();
       toast('🧪 +50 HP. The System notices.');
     }
+    else if(a === 'buy-xpPotion') buyPowerup('xpPotion', 50);
+    else if(a === 'use-xpPotion'){
+      if(state.inventory.xpPotion <= 0) return;
+      state.inventory.xpPotion--;
+      state.xpMultiplier = (state.xpMultiplier || 0) + 3;
+      save(); renderAll(); sfxCheckIn();
+      toast('⚡ 2× XP activated for your next 3 quest check-ins!');
+    }
+    else if(a === 'buy-armor') buyPowerup('armor', 80);
+    else if(a === 'buy-salmon') buyPowerup('salmon', 30);
+    else if(a === 'eat-salmon'){
+      if(state.inventory.salmon <= 0) return;
+      state.inventory.salmon--;
+      state.hp = Math.min(maxHp(), state.hp + 40);
+      state.exp += 20;
+      save(); renderAll(); sfxCheckIn();
+      toast('🐟 Ate Baked Salmon: +40 HP and +20 energy EXP!');
+    }
+    else if(a === 'buy-seer') buyPowerup('seerStone', 90);
+    else if(a === 'use-seer'){
+      if(state.inventory.seerStone <= 0) return;
+      const openQ = state.quests.find(q => q.freq === 'daily' && q.timesDone < q.dailyLimit);
+      if(!openQ){ toast('All daily quests are already done today!'); return; }
+      state.inventory.seerStone--;
+      save();
+      checkIn(openQ.id, null);
+      toast('🔮 Seer Stone consumed: "' + openQ.name + '" auto-completed without penalty!');
+    }
+    else if(a === 'buy-frozenFlame') buyPowerup('frozenFlame', 180);
   }));
+
   document.querySelectorAll('.col-title').forEach(b => b.addEventListener('click', () => {
     state.activeTitle = state.activeTitle === b.dataset.t ? null : b.dataset.t;
     save(); renderAll(); toast(state.activeTitle ? 'Title equipped: ' + state.activeTitle : 'Title removed.');
@@ -1700,7 +1813,10 @@ function openQuestEditor(id){
   el('qmTitle').textContent = q ? 'EDIT QUEST' : 'NEW QUEST';
   el('qmName').value = q ? q.name : '';
   el('qmIcon').value = q ? (q.icon || '') : '';
-  el('qmCat').value = q ? (q.category || 'Other') : 'Body';
+  const cat = q ? (q.category || 'Body') : 'Body';
+  el('qmCat').value = cat;
+  document.querySelectorAll('.cat-pill').forEach(p =>
+    p.classList.toggle('active', p.dataset.cat === cat));
   el('qmExp').value = q ? q.exp : 50;
   el('qmGold').value = q ? q.gold : 5;
   el('qmLimit').value = q ? q.dailyLimit : 1;
@@ -1784,11 +1900,18 @@ function openBossEditor(){
 function buyPowerup(key, cost){
   if(state.gold < cost){ toast('Not enough gold. The System is watching.'); return; }
   state.gold -= cost;
-  state.inventory[key]++;
+  state.inventory[key] = (state.inventory[key] || 0) + 1;
   save(); renderAll(); sfxCheckIn();
-  toast(key === 'streakSaver'
-    ? '🧊 Streak Saver acquired — it will guard your streak automatically.'
-    : '🧪 HP Potion acquired. Find it under Power-ups.');
+  const msgs = {
+    streakSaver: 'Streak Saver acquired — guards your streak for 1 day.',
+    hpPotion: 'HP Potion acquired (+50 HP).',
+    xpPotion: 'XP Potion acquired — drink to gain 2× XP on next 3 check-ins.',
+    armor: 'System Armor acquired — shields HP and penalties on missed days.',
+    salmon: 'Baked Salmon acquired — rich meal for +40 HP & +20 EXP energy.',
+    seerStone: 'Seer Stone acquired — consume to auto-complete 1 daily quest.',
+    frozenFlame: 'Frozen Flame acquired — guards streak for 4 full days.',
+  };
+  toast(msgs[key] || (key + ' acquired.'));
 }
 
 /* ---------------- chests & collection ---------------- */
@@ -2446,6 +2569,13 @@ function init(){
     sfxBadge(); toast('🎁 Blessing claimed: +' + amt + ' ◈. See you tomorrow, ' + state.character.name + '.');
   });
 
+  document.querySelectorAll('.cat-pill').forEach(p => {
+    p.addEventListener('click', () => {
+      document.querySelectorAll('.cat-pill').forEach(x => x.classList.remove('active'));
+      p.classList.add('active');
+      el('qmCat').value = p.dataset.cat;
+    });
+  });
   el('qmClose').addEventListener('click', () => hide(el('questModal')));
   el('qmSave').addEventListener('click', saveQuest);
   el('qmDelete').addEventListener('click', deleteQuest);
