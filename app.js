@@ -17,10 +17,10 @@ const TITLES = ['The Unbroken','Night Blade','Iron Will','Silent Storm','First o
 const RANKS = [
   { r:'BRONZE',   icon:'\u{1F949}', exp:0 },
   { r:'SILVER',   icon:'\u{1F948}', exp:500 },
-  { r:'GOLD',     icon:'\u{1F947}', exp:1500 },
-  { r:'PLATINUM', icon:'\u{1F52F}', exp:4000 },
-  { r:'DIAMOND',  icon:'\u{1F48E}', exp:10000 },
-  { r:'CROWN',    icon:'\u{1F451}', exp:25000 },
+  { r:'GOLD',     icon:'\u{1F947}', exp:1000 },
+  { r:'PLATINUM', icon:'\u{1F4A0}', exp:1500 },
+  { r:'DIAMOND',  icon:'\u{1F48E}', exp:2000 },
+  { r:'CROWN',    icon:'\u{1F451}', exp:2500 },
 ];
 const CRATES = {
   wood:    { icon:'\u{1F4E6}', name:'Wooden Crate',  desc:'Earn 100 EXP today',             goals:{quests:0, exp:100, perfect:0}, rewardHint:'20\u201345 \u25C8 \u00B7 EXP' },
@@ -201,6 +201,8 @@ function migrate(s){
   if(!s.settings.sync.playerId) s.settings.sync.playerId = newPlayerId();
   s.stats = Object.assign({ STR:0, INT:0, VIT:0, CHA:0 }, s.stats || {});
   s.perfect = Object.assign({}, s.perfect || {});
+  const maxH = Math.max(1, Number(s.settings?.maxHp) || 100);
+  if(s.hp > maxH) s.hp = maxH;
   if(!s.class) s.class = 'warrior';
   s.inventory = Object.assign({ streakSaver:0, hpPotion:0, xpPotion:0, armor:0, salmon:0, seerStone:0, frozenFlame:0 }, s.inventory || {});
   for(const k of ['streakSaver', 'hpPotion', 'xpPotion', 'armor', 'salmon', 'seerStone', 'frozenFlame']){
@@ -264,7 +266,8 @@ function sanitize(d){
   d.created = Number(d.created) || Date.now();
   d.class = typeof d.class === 'string' ? d.class : 'warrior';
   d.exp = Math.max(0, Number(d.exp) || 0);
-  d.hp = Math.max(0, Number(d.hp) || 0);
+  const maxSanH = Math.max(1, Number(d.settings?.maxHp) || 100);
+  d.hp = Math.max(0, Math.min(maxSanH, Number(d.hp) || 0));
   d.gold = Math.max(0, Number(d.gold) || 0);
   d.totalGold = Math.max(0, Number(d.totalGold) || 0);
   d.totalQuests = Math.max(0, Number(d.totalQuests) || 0);
@@ -414,10 +417,21 @@ function levelFromExp(total){
   return { level, into:rem, needed:expNeededFor(level) };
 }
 function rankIndexForExp(expTotal){
-  return Math.min(RANKS.length - 1, Math.max(0, Math.floor(Math.max(0, expTotal) / 500)));
+  const te = Math.max(0, Number(expTotal) || 0);
+  if(te >= 2500) return 5;
+  if(te >= 2000) return 4;
+  if(te >= 1500) return 3;
+  if(te >= 1000) return 2;
+  if(te >= 500)  return 1;
+  return 0;
 }
 function rankForLevel(l){
-  if(typeof l === 'number' && l > 0 && l <= 100){
+  if(typeof l === 'number'){
+    if(l === 1) return 'BRONZE';
+    if(l === 30) return 'CROWN';
+    if(state && state.exp !== undefined && levelFromExp(state.exp).level === l){
+      return rankAtExp(state.exp);
+    }
     const s = state ? state.settings : DEFAULT_SETTINGS;
     if(l >= s.rankS) return 'CROWN';
     if(l >= s.rankA) return 'DIAMOND';
@@ -486,7 +500,7 @@ function titleForLevel(l){
   if(l >= 5)  return 'The Awakened';
   return 'Novice';
 }
-function maxHp(){ return state.settings.maxHp + (levelFromExp(state.exp).level - 1) * 5; }
+function maxHp(){ return Math.max(1, Number(state && state.settings ? state.settings.maxHp : 100) || 100); }
 
 function rankLadder(){
   const info = rankInfo();
@@ -497,11 +511,11 @@ function rankLadder(){
       <span class="rl-icon">${info.cur.icon}</span>
       <div class="rl-main">
         <div class="rl-name">RANK &nbsp;<b>${info.cur.r}</b></div>
-        <div class="rl-next">${info.next ? fmt(info.toGo) + ' EXP to ' + info.next.icon + ' ' + info.next.r + ' (Lv ' + info.nextLevel + ')' : '★ MAX RANK REACHED'}</div>
+        <div class="rl-next">${info.next ? fmt(info.toGo) + ' EXP to ' + info.next.icon + ' ' + info.next.r : '★ MAX RANK REACHED'}</div>
       </div>
     </div>
     <div class="bar" style="margin-top:10px"><i style="width:${info.pct}%"></i></div>
-    ${info.drop > 0 ? '<div class="rl-drop">⚠ Season drop active: −' + info.drop + ' — level up to push back up</div>' : ''}
+    ${info.drop > 0 ? '<div class="rl-drop">⚠ Season drop active: −' + info.drop + ' — earn EXP to push back up</div>' : ''}
     <div class="rl-best">⭐ best day ${state.bestQuestsDay || 0} quests</div>
   </div>`;
 }
@@ -520,7 +534,8 @@ function expToReachLevel(L){
   return t;
 }
 function rankInfo(){
-  const te = state ? state.exp : 0;
+  const te = state ? Math.max(0, Number(state.exp) || 0) : 0;
+  const { level } = levelFromExp(te);
   const baseIdx = rankIndexForExp(te);
   const drop = (state && state.season && Number(state.season.drop)) || 0;
   const effIdx = Math.max(0, baseIdx - drop);
@@ -528,12 +543,13 @@ function rankInfo(){
   const next = effIdx < RANKS.length - 1 ? RANKS[effIdx + 1] : null;
   let pct = 100, toGo = 0;
   if(next){
-    const targetExp = (effIdx + 1 + drop) * 500;
-    const prevExp = targetExp - 500;
+    const targetExp = next.exp;
+    const prevExp = cur.exp;
     toGo = Math.max(0, targetExp - te);
-    pct = Math.min(100, Math.max(0, Math.round((te - prevExp) / 500 * 100)));
+    const span = Math.max(1, targetExp - prevExp);
+    pct = Math.min(100, Math.max(0, Math.round((te - prevExp) / span * 100)));
   }
-  return { te, cur, next, pct, toGo, drop, baseIdx, effIdx };
+  return { level, te, cur, next, pct, toGo, drop, baseIdx, effIdx };
 }
 
 /* ---------------- themes ---------------- */
@@ -689,6 +705,22 @@ function checkIn(qid, ev){
     state.log.unshift({ ts:Date.now(), name:'Lucky find — the System smiles', icon:'🍀', exp:0, gold:bonus });
     save(); renderAll();
     if(ev) floatText('🍀 LUCKY +' + bonus + ' ◈', ev.clientX, ev.clientY - 50, 'lucky');
+    sfxBadge();
+  }
+  // 5% rare drop on quest completion (XP Potion, Baked Salmon, Seer Stone, Frozen Flame)
+  if(Math.random() < 0.05){
+    const rareDrops = [
+      { key:'xpPotion', name:'XP Potion', icon:'⚡', desc:'2× XP for next 3 quests' },
+      { key:'salmon', name:'Baked Salmon', icon:'🐟', desc:'+40 HP & +20 EXP feast' },
+      { key:'seerStone', name:'Seer Stone', icon:'🔮', desc:'auto-completes 1 daily quest' },
+      { key:'frozenFlame', name:'Frozen Flame', icon:'❄️', desc:'4-day streak protection shield' },
+    ];
+    const drop = rareDrops[Math.floor(Math.random() * rareDrops.length)];
+    state.inventory[drop.key] = (state.inventory[drop.key] || 0) + 1;
+    state.log.unshift({ ts:Date.now(), name:'Rare Drop: ' + drop.name, icon:drop.icon, exp:0, gold:0 });
+    save(); renderAll();
+    if(ev) floatText('🎁 ' + drop.name.toUpperCase() + '!', ev.clientX, ev.clientY - 70, 'lucky');
+    toast('🎁 RARE DROP! Found ' + drop.name + ' (' + drop.desc + ')!');
     sfxBadge();
   }
 }
@@ -1057,6 +1089,7 @@ function renderCharacter(){
   const { level, into, needed } = levelFromExp(state.exp);
   const rank = rankAtExp(state.exp);
   const mh = maxHp();
+  if(state.hp > mh) state.hp = mh;
   const expPct = Math.min(100, Math.round(into / needed * 100));
   const hpPct = Math.max(0, Math.min(100, Math.round(state.hp / mh * 100)));
   const badges = BADGES.filter(b => state.badges.includes(b.id))
@@ -1088,28 +1121,6 @@ function renderCharacter(){
         <div class="bar-block">
           <div class="bar-label"><span>HP</span><span>${Math.round(state.hp)} / ${mh}</span></div>
           <div class="bar hp"><i style="width:${hpPct}%"></i></div>
-        </div>
-        <div class="stat-grid">
-          <div class="stat-card st-str">
-            <div class="sc-head"><span class="sc-icon">💪</span> FITNESS</div>
-            <div class="sc-val">${state.stats.STR}</div>
-            <div class="sc-hint">Body & Strength</div>
-          </div>
-          <div class="stat-card st-int">
-            <div class="sc-head"><span class="sc-icon">🧠</span> MIND</div>
-            <div class="sc-val">${state.stats.INT}</div>
-            <div class="sc-hint">Knowledge & Focus</div>
-          </div>
-          <div class="stat-card st-vit">
-            <div class="sc-head"><span class="sc-icon">⚡</span> DISCIPLINE</div>
-            <div class="sc-val">${state.stats.VIT}</div>
-            <div class="sc-hint">Habits & Routine</div>
-          </div>
-          <div class="stat-card st-cha">
-            <div class="sc-head"><span class="sc-icon">🤝</span> SOCIAL</div>
-            <div class="sc-val">${state.stats.CHA}</div>
-            <div class="sc-hint">People & Charisma</div>
-          </div>
         </div>
         ${rankLadder()}
         <div class="p-foot-row">
@@ -1584,7 +1595,7 @@ function renderSettings(){
         <div class="set-title">Survival Rules</div>
         ${setRow('HP PENALTY (miss a day)', 'hpPenalty', 0, 50, 5, s.hpPenalty)}
         ${setRow('HP HEAL (per check-in)', 'hpHeal', 0, 10, 1, s.hpHeal)}
-        ${setRow('MAX HP (AT LEVEL 1)', 'maxHp', 50, 300, 10, s.maxHp)}
+        ${setRow('MAX HP', 'maxHp', 50, 300, 10, s.maxHp)}
       </div>
 
       <div class="set-sec">
@@ -1750,20 +1761,20 @@ create policy "open personal sync"
 const RULES_TEXT = `
 <div class="rules-row"><span class="rules-num">1</span><div><b>Quests.</b> Daily quests reset at midnight. Weekly quests reset on Monday. Monthly quests reset on the 1st. Check in ONLY when you truly did the thing — the System can feel a lie.</div></div>
 <div class="rules-row"><span class="rules-num">2</span><div><b>Streak.</b> Complete at least ONE quest each day and your streak grows by 1. Miss a day and it breaks — and the System takes HP for it. A Streak Saver, if you own one, freezes one missed day so the streak survives.</div></div>
-<div class="rules-row"><span class="rules-num">3</span><div><b>EXP &amp; Levels.</b> Every quest gives EXP. Level up when your bar fills. Higher level = higher EXP need, more max HP, and a better title. Titles: Novice, Challenger, Warrior, Elite, Hero, Hunter, Shadow Monarch, Archon, Sovereign.</div></div>
+<div class="rules-row"><span class="rules-num">3</span><div><b>EXP &amp; Levels.</b> Every quest gives EXP. Level up when your bar fills. Higher level = higher EXP need, prestige titles, and hunter progression. Titles: Novice, Challenger, Warrior, Elite, Hero, Hunter, Shadow Monarch, Archon, Sovereign.</div></div>
 <div class="rules-row"><span class="rules-num">4</span><div><b>Truth only.</b> The System rewards actions, not words. Check in ONLY when you truly did the thing — a fake check-in is a debt, and the System keeps a ledger.</div></div>
-<div class="rules-row"><span class="rules-num">5</span><div><b>Real-Life Attributes.</b> Each quest levels up a core skill: Body quests build <b>Fitness</b>, Mind quests build <b>Mind</b>, Discipline quests build <b>Discipline</b>, and Social quests build <b>Social</b>. The higher your stats, the stronger you become.</div></div>
-<div class="rules-row"><span class="rules-num">6</span><div><b>HP.</b> HP is your health. Breaking your streak hurts you (Guardian: half as much). At zero HP the System gives you a quest — finish it and you get 30 HP back. You can also drink HP Potions from the Shop.</div></div>
-<div class="rules-row"><span class="rules-num">7</span><div><b>Gold.</b> Every quest earns gold. Spend it on real-world rewards you create in the Shop, or on Power-ups: Streak Saver (150) and HP Potion (100).</div></div>
+<div class="rules-row"><span class="rules-num">5</span><div><b>Quest Discipline.</b> Complete your quests daily to build unstoppable momentum. Consistency fuels your rank progression and strengthens your hunter identity.</div></div>
+<div class="rules-row"><span class="rules-num">6</span><div><b>HP.</b> HP is your health (default 100 max HP). Breaking your streak hurts you (Guardian: half as much). At zero HP the System gives you a quest — finish it and you get 30 HP back. You can also drink HP Potions from the Shop.</div></div>
+<div class="rules-row"><span class="rules-num">7</span><div><b>Gold.</b> Every quest earns gold. Spend it on real-world rewards you create in the Shop, or on Mystery Chests, Streak Savers (150), System Armor (80), and HP Potions (100).</div></div>
 <div class="rules-row"><span class="rules-num">8</span><div><b>Boss Fight.</b> A boss with its own HP bar appears every day. Daily quests deal damage. Kill it for a big EXP and gold drop and a fresh, stronger boss appears. You can name your boss.</div></div>
 <div class="rules-row"><span class="rules-num">9</span><div><b>Perfect Days.</b> Finish every daily quest in a day and earn the "Flawless" badge. Complete a whole week and earn "Undeniable". Perfect days are counted per week.</div></div>
 <div class="rules-row"><span class="rules-num">10</span><div><b>Daily Blessing.</b> Open the game each day and the System greets you with gold: 10 ◈ plus 2 ◈ per streak day. It is a small thank-you for showing up.</div></div>
-<div class="rules-row"><span class="rules-num">11</span><div><b>Luck.</b> 15% of check-ins bring a lucky gold bonus. The System is fickle — that is why you check in.</div></div>
-<div class="rules-row"><span class="rules-num">12</span><div><b>System Ranks.</b> Your rank climbs with your power, lobby by lobby: BRONZE → SILVER → GOLD → PLATINUM → DIAMOND → CROWN. Default ladder: SILVER at level 5, GOLD at 10, PLATINUM at 15, DIAMOND at 20, CROWN at 30 — you can move every step in Settings (Leveling Curve). Your best quest day sits under the rank card.</div></div>
-<div class="rules-row"><span class="rules-num">13</span><div><b>Crates.</b> Each day the System offers three crates — a challenge, not a mission: Wooden (earn 100 EXP, small reward), Gold (earn 250 EXP, medium reward), Diamond (earn 500 EXP + 5 quests, big reward). Choose ONE — the clock starts immediately and you cannot switch. Beat the goal and the crate is UNLOCKED — tap OPEN to collect your reward (Wooden 20–45 ◈ · Gold 50–100 ◈, potion, title · Diamond 120–220 ◈, Streak Saver, title). Forget to open it by midnight? It collects itself automatically.</div></div>
-<div class="rules-row"><span class="rules-num">14</span><div><b>Chests &amp; Collection.</b> The Shop has a Free Supply (10–30 ◈, once a day) and a Mystery Chest (60 ◈) with random drops: gold, EXP, HP Potion, Streak Saver, or a new title. Your Badge Collection shows every badge you have earned — the locked ones wait there until you earn them. Bonus titles from chests can be worn on your card.</div></div>
-<div class="rules-row"><span class="rules-num">15</span><div><b>Seasons.</b> The System runs in seasons, like the great lobbies — each one lasts a month, counted from the day you were awakened. When a new season begins, your rank drops two steps (never below BRONZE); your level and progress stay. Push your rank back up. No one stays on top forever.</div></div>
-<div class="rules-row"><span class="rules-num">16</span><div><b>Your life, your rules.</b> Every number on this page — EXP, gold, HP, bosses, seasons, themes, layouts, the rank ladder — can be changed in Settings → Game Master. The System obeys you, Player. Even this book does not stop you rewriting the world.</div></div>
+<div class="rules-row"><span class="rules-num">11</span><div><b>Luck &amp; Rare Drops.</b> 15% of check-ins bring a lucky gold bonus. Quests also have a 5% chance to drop rare legendary powerups like XP Potions, Baked Salmon, Seer Stones, or Frozen Flames.</div></div>
+<div class="rules-row"><span class="rules-num">12</span><div><b>System Ranks.</b> Your rank climbs every 500 EXP: BRONZE (0) → SILVER (500) → GOLD (1,000) → PLATINUM (1,500) → DIAMOND (2,000) → CROWN (2,500). Every completed quest pushes you closer to the next tier.</div></div>
+<div class="rules-row"><span class="rules-num">13</span><div><b>Crates.</b> Each day the System offers three crates — a challenge, not a mission: Wooden (earn 100 EXP, small reward), Gold (earn 250 EXP, medium reward), Diamond (earn 500 EXP + 5 quests, big reward). Choose ONE — the clock starts immediately and you cannot switch. Beat the goal and the crate is UNLOCKED — tap OPEN to collect your reward.</div></div>
+<div class="rules-row"><span class="rules-num">14</span><div><b>Chests &amp; Collection.</b> The Shop has a Free Supply (10–30 ◈, once a day) and a Mystery Chest (60 ◈) with random drops: gold, EXP, HP Potion, Streak Saver, rare powerups, or a new title. Your Badge Collection shows every badge you have earned. Bonus titles from chests can be worn on your card.</div></div>
+<div class="rules-row"><span class="rules-num">15</span><div><b>Seasons.</b> The System runs in seasons — each one lasts a month, counted from the day you were awakened. When a new season begins, your rank drops two steps (never below BRONZE); your level and progress stay. Push your rank back up. No one stays on top forever.</div></div>
+<div class="rules-row"><span class="rules-num">16</span><div><b>Your life, your rules.</b> Every number on this page — EXP, gold, HP, bosses, seasons, themes, layouts — can be changed in Settings → Game Master. The System obeys you, Player. Even this book does not stop you rewriting the world.</div></div>
 `;
 
 function openRulesBook(){
@@ -2390,16 +2401,19 @@ async function drawCardCanvas(){
   cardBar(x, 80, 660, W - 160, 16, into / needed, 'rgba(56,189,248,.95)', 'EXP  ' + fmt(into) + ' / ' + fmt(needed));
   cardBar(x, 80, 730, W - 160, 16, state.hp / maxHp(), 'rgba(248,113,113,.95)', 'HP  ' + Math.round(state.hp) + ' / ' + maxHp());
 
-  const keys = ['STR', 'INT', 'VIT', 'CHA'];
-  const colors = { STR:'#f87171', INT:'#7dd3fc', VIT:'#34d399', CHA:'#fbbf24' };
-  const labels = { STR:'FITNESS', INT:'MIND', VIT:'DISCIPLINE', CHA:'SOCIAL' };
-  keys.forEach((k, i) => {
-    const cx = 110 + i * 180;
+  const statsCols = [
+    { label:'QUESTS', val:fmt(state.totalQuests), col:'#7dd3fc' },
+    { label:'GOLD EARNED', val:fmt(state.totalGold || state.gold), col:'#fbbf24' },
+    { label:'BEST STREAK', val:(state.bestStreak || state.streak || 0) + 'd', col:'#f97316' },
+    { label:'BOSS KILLS', val:state.bossKills || 0, col:'#f87171' },
+  ];
+  statsCols.forEach((st, i) => {
+    const cx = 90 + i * 180;
     x.textAlign = 'center';
-    x.font = '800 34px system-ui'; x.fillStyle = colors[k];
-    x.fillText(state.stats[k], cx, 850);
-    x.font = '700 15px system-ui'; x.fillStyle = '#7d8db0';
-    x.fillText(labels[k], cx, 880);
+    x.font = '800 32px system-ui'; x.fillStyle = st.col;
+    x.fillText(st.val, cx, 850);
+    x.font = '700 13px system-ui'; x.fillStyle = '#7d8db0';
+    x.fillText(st.label, cx, 880);
   });
 
   x.textAlign = 'center';
@@ -2616,7 +2630,21 @@ function init(){
   });
 
   if('serviceWorker' in navigator && /^https?:$/.test(location.protocol)){
-    window.addEventListener('load', () => navigator.serviceWorker.register('sw.js', { updateViaCache: 'revalidate' }).catch(() => {}));
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js?v=63', { updateViaCache: 'none' }).then(reg => {
+        reg.update();
+        reg.onupdatefound = () => {
+          const inst = reg.installing;
+          if(inst){
+            inst.onstatechange = () => {
+              if(inst.state === 'installed' && navigator.serviceWorker.controller){
+                window.location.reload();
+              }
+            };
+          }
+        };
+      }).catch(() => {});
+    });
   }
 }
 

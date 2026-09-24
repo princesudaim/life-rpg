@@ -1,7 +1,7 @@
 /* Life RPG service worker — network first, cache fallback (works offline after first load).
    The cache name is versioned: when the app updates, the new worker wipes all old caches,
    so a device can never stay stuck on an old version. */
-const CACHE = 'liferpg-v62';
+const CACHE = 'liferpg-v63';
 
 self.addEventListener('install', () => self.skipWaiting());
 

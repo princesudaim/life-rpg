@@ -879,3 +879,36 @@ body[data-theme="red"] .rl-cell.on{background:var(--red);border-color:var(--red)
 .streak-flame-img.f3{width:30px;height:30px;}
 .streak-flame-img.f4{width:34px;height:34px;filter:drop-shadow(0 0 16px rgba(249,115,22,.95));}
 .streak-flame-img.f5{width:40px;height:40px;filter:drop-shadow(0 0 24px rgba(239,68,68,1));}
+
+/* Real 3D assets override for all item and crate visuals */
+.cv-crate.cv-wood{background:url('assets/crate_wood.png') center/contain no-repeat !important;box-shadow:none !important;border:none !important;}
+.cv-crate.cv-wood::before,.cv-crate.cv-wood .cv-band,.cv-crate.cv-wood .cv-lock{display:none !important;}
+
+.cv-crate.cv-gold{background:url('assets/crate_gold.png') center/contain no-repeat !important;box-shadow:none !important;border:none !important;}
+.cv-crate.cv-gold::before,.cv-crate.cv-gold .cv-band,.cv-crate.cv-gold .cv-lock{display:none !important;}
+
+.cv-crate.cv-diamond{background:url('assets/crate_diamond.png') center/contain no-repeat !important;box-shadow:none !important;border:none !important;}
+.cv-crate.cv-diamond::before,.cv-crate.cv-diamond .cv-band,.cv-crate.cv-diamond .cv-lock{display:none !important;}
+
+.crate-icon .cv-crate{width:68px !important;height:68px !important;}
+
+.cv-chest{background:url('assets/chest.png') center/contain no-repeat !important;box-shadow:none !important;border:none !important;}
+.cv-chest::before,.cv-chest::after{display:none !important;}
+
+.cv-xp{background:url('assets/potion_xp.png') center/contain no-repeat !important;box-shadow:none !important;border:none !important;}
+.cv-xp::before,.cv-xp::after{display:none !important;}
+
+.cv-armor{background:url('assets/armor.png') center/contain no-repeat !important;box-shadow:none !important;border:none !important;}
+.cv-armor::before,.cv-armor::after{display:none !important;}
+
+.cv-salmon{background:url('assets/salmon.png') center/contain no-repeat !important;box-shadow:none !important;border:none !important;}
+.cv-salmon::before,.cv-salmon::after{display:none !important;}
+
+.cv-seer{background:url('assets/seer_stone.png') center/contain no-repeat !important;box-shadow:none !important;border:none !important;}
+.cv-seer::before,.cv-seer::after{display:none !important;}
+
+.cv-frozen-flame{background:url('assets/frozen_flame.png') center/contain no-repeat !important;box-shadow:none !important;border:none !important;}
+.cv-frozen-flame::before,.cv-frozen-flame::after{display:none !important;}
+
+.flame{background:url('assets/flame.png') center/contain no-repeat !important;border:none !important;box-shadow:none !important;}
+.flame::after{display:none !important;}
