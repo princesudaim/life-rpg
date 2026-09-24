@@ -170,6 +170,7 @@ function defaultState(){
     crates:{ day:null, tier:null, progress:{quests:0,exp:0,perfect:0}, done:false, claimed:false },
     dayExp:0,
     viewModes:{ quests:'path', shop:'grid', crates:'grid' },
+    season:{ num:1, drop:0 },
     collection:{ sigils: START_SIGILS.slice(), titles:[]},
     activeTitle:null,
     dayQuests:0, bestQuestsDay:0,
@@ -235,6 +236,9 @@ function migrate(s){
   if(s.viewModes.quests !== 'list') s.viewModes.quests = 'path';
   if(s.viewModes.shop !== 'list') s.viewModes.shop = 'grid';
   if(s.viewModes.crates !== 'list') s.viewModes.crates = 'grid';
+  if(!s.season || typeof s.season !== 'object') s.season = { num:1, drop:0 };
+  s.season.num = Math.max(1, Math.floor(Number(s.season.num) || 1));
+  s.season.drop = Math.max(0, Math.min(5, Math.floor(Number(s.season.drop) || 0)));
   if(s.bossKills === undefined) s.bossKills = 0;
   if(s.bossCustomName === undefined) s.bossCustomName = '';
   if(s.lastReportMonth === undefined) s.lastReportMonth = null;
@@ -280,6 +284,9 @@ function sanitize(d){
   d.viewModes.quests = d.viewModes.quests === 'list' ? 'list' : 'path';
   d.viewModes.shop = d.viewModes.shop === 'list' ? 'list' : 'grid';
   d.viewModes.crates = d.viewModes.crates === 'list' ? 'list' : 'grid';
+  d.season = (d.season && typeof d.season === 'object') ? d.season : { num:1, drop:0 };
+  d.season.num = Math.max(1, Math.floor(Number(d.season.num) || 1));
+  d.season.drop = Math.max(0, Math.min(5, Math.floor(Number(d.season.drop) || 0)));
   d.collection = { sigils: Array.isArray(d.collection?.sigils) ? d.collection.sigils.filter(x => typeof x === 'string') : START_SIGILS.slice(), titles: Array.isArray(d.collection?.titles) ? d.collection.titles.filter(x => typeof x === 'string') : [] };
   d.activeTitle = typeof d.activeTitle === 'string' ? d.activeTitle : null;
   d.dayQuests = Math.max(0, Number(d.dayQuests) || 0);
@@ -407,6 +414,49 @@ function rankForLevel(l){
   if(l >= s.rankD) return 'SILVER';
   return 'BRONZE';
 }
+function rankIndexForLevel(l){ return RANKS.findIndex(r => r.r === rankForLevel(l)); }
+function rankAtExp(expTotal){
+  const { level } = levelFromExp(expTotal);
+  const drop = (state.season && Number(state.season.drop)) || 0;
+  return RANKS[Math.max(0, rankIndexForLevel(level) - drop)].r;
+}
+
+/* ---------------- seasons (PUBG-style: one month, rank drops two at the start) ---------------- */
+function seasonStart(n){
+  const c = new Date(Number(state.created) || Date.now());
+  return new Date(c.getFullYear(), c.getMonth() + (n - 1), c.getDate());
+}
+function seasonInfo(){
+  const now = new Date();
+  let n = 1;
+  for(let i = 0; i < 600; i++){
+    if(seasonStart(n + 1) <= now) n++; else break;
+  }
+  const end = seasonStart(n + 1);
+  return { num: n, end, daysLeft: Math.max(0, Math.ceil((end - now) / 86400000)) };
+}
+function seasonTick(){
+  if(!state) return;
+  if(!state.season || typeof state.season !== 'object') state.season = { num:1, drop:0 };
+  state.season.num = Math.max(1, Math.floor(Number(state.season.num) || 1));
+  const cur = seasonInfo();
+  if(cur.num > state.season.num){
+    const base = rankIndexForLevel(levelFromExp(state.exp).level);
+    state.season.drop = Math.min(base, 2);
+    state.season.num = cur.num;
+    save();
+    const from = RANKS[base].r, to = RANKS[Math.max(0, base - state.season.drop)].r;
+    el('fxContent').innerHTML =
+      '<div class="fx-kicker">System Notification</div>' +
+      '<div class="fx-big">SEASON ' + cur.num + '</div>' +
+      (to !== from
+        ? '<div class="fx-sub">Rank reset: <b>' + from + '</b> &rarr; <b>' + to + '</b></div>'
+        : '<div class="fx-sub">No rank change — the floor is BRONZE.</div>') +
+      '<div class="fx-sub" style="margin-top:8px">Push back up. The System never forgets.</div>';
+    showOverlay(el('fxOverlay'), 3000);
+    sfxLevelUp();
+  }
+}
 function rankIcon(name){
   const r = RANKS.find(x => x.r === name);
   return r ? r.icon : RANKS[0].icon;
@@ -423,7 +473,9 @@ function maxHp(){ return state.settings.maxHp + (levelFromExp(state.exp).level -
 
 function rankLadder(){
   const info = rankInfo();
+  const se = seasonInfo();
   return `<div class="rank-ladder">
+    <div class="rl-season"><span>SEASON ${se.num}</span><span>${se.daysLeft}d left</span></div>
     <div class="rl-top">
       <span class="rl-icon">${info.cur.icon}</span>
       <div class="rl-main">
@@ -432,6 +484,7 @@ function rankLadder(){
       </div>
     </div>
     <div class="bar" style="margin-top:10px"><i style="width:${info.pct}%"></i></div>
+    ${info.drop > 0 ? '<div class="rl-drop">⚠ Season drop active: −' + info.drop + ' — level up to push back up</div>' : ''}
     <div class="rl-best">⭐ best day ${state.bestQuestsDay || 0} quests</div>
   </div>`;
 }
@@ -452,10 +505,14 @@ function expToReachLevel(L){
 function rankInfo(){
   const { level } = levelFromExp(state.exp);
   const s = state.settings;
-  const cur = RANKS.find(x => x.r === rankForLevel(level)) || RANKS[0];
-  const idx = RANKS.indexOf(cur);
-  const nextLevel = [s.rankD, s.rankC, s.rankB, s.rankA, s.rankS, null][idx];
-  const next = nextLevel ? RANKS[idx + 1] : null;
+  const baseIdx = rankIndexForLevel(level);
+  const drop = (state.season && Number(state.season.drop)) || 0;
+  const effIdx = Math.max(0, baseIdx - drop);
+  const cur = RANKS[effIdx];
+  const next = effIdx < RANKS.length - 1 ? RANKS[effIdx + 1] : null;
+  const levelAtIdx = [1, s.rankD, s.rankC, s.rankB, s.rankA, s.rankS];
+  const needIdx = next ? effIdx + 1 + drop : null;
+  const nextLevel = (needIdx !== null && needIdx < levelAtIdx.length) ? levelAtIdx[needIdx] : null;
   const te = totalExp();
   let pct = 100, toGo = 0;
   if(nextLevel){
@@ -463,7 +520,7 @@ function rankInfo(){
     pct = Math.min(100, Math.max(0, Math.round((te - base) / Math.max(1, target - base) * 100)));
     toGo = Math.max(0, target - te);
   }
-  return { level, te, cur, next, nextLevel, pct, toGo };
+  return { level, te, cur, next, nextLevel, pct, toGo, drop, baseIdx, effIdx };
 }
 
 /* ---------------- themes ---------------- */
@@ -542,7 +599,7 @@ function touchStreak(){
 
 function applyReward({ exp, gold = 0, name, icon, statKey = null, ev = null }){
   const before = levelFromExp(state.exp);
-  const prevRank = rankForLevel(before.level);
+  const prevRank = rankAtExp(state.exp);
 
   state.exp += exp;
   state.gold += gold;
@@ -558,7 +615,7 @@ function applyReward({ exp, gold = 0, name, icon, statKey = null, ev = null }){
   touchStreak();
 
   const after = levelFromExp(state.exp);
-  const newRank = rankForLevel(after.level);
+  const newRank = rankAtExp(state.exp);
 
   save();
   renderAll();
@@ -746,7 +803,7 @@ function renderAll(){
 
 function renderTopbar(){
   const { level } = levelFromExp(state.exp);
-  el('tbLevel').textContent = `Lv ${level} · ${rankIcon(rankForLevel(level))}`;
+  el('tbLevel').textContent = `Lv ${level} · ${rankIcon(rankAtExp(state.exp))}`;
   el('tbGold').textContent = `◈ ${fmt(state.gold)}`;
   const vt = el('viewToggleBtn');
   if(vt){
@@ -759,7 +816,7 @@ function renderTopbar(){
     } else vt.style.display = 'none';
   }
   const sbL = el('sbLevel'), sbG = el('sbGold');
-  if(sbL) sbL.textContent = `Lv ${level} · ${rankForLevel(level)}`;
+  if(sbL) sbL.textContent = `Lv ${level} · ${rankAtExp(state.exp)}`;
   if(sbG) sbG.textContent = `◈ ${fmt(state.gold)}`;
 }
 
@@ -780,7 +837,7 @@ function renderRail(){
   const r = el('rail');
   if(!r) return;
   const { level, into, needed } = levelFromExp(state.exp);
-  const rank = rankForLevel(level);
+  const rank = rankAtExp(state.exp);
   const mh = maxHp();
   const b = state.boss, bs = state.settings;
   const bdef = b.done >= bs.bossPhases;
@@ -812,7 +869,7 @@ function renderRail(){
 
 function renderCharacter(){
   const { level, into, needed } = levelFromExp(state.exp);
-  const rank = rankForLevel(level);
+  const rank = rankAtExp(state.exp);
   const mh = maxHp();
   const expPct = Math.min(100, Math.round(into / needed * 100));
   const hpPct = Math.max(0, Math.min(100, Math.round(state.hp / mh * 100)));
@@ -1235,7 +1292,8 @@ function renderSettings(){
         <div class="set-title">Survival Rules</div>
         ${setRow('HP PENALTY (miss a day)', 'hpPenalty', 0, 50, 5, s.hpPenalty)}
         ${setRow('HP HEAL (per check-in)', 'hpHeal', 0, 10, 1, s.hpHeal)}
-        ${setRow('MAX HP', 'maxHp', 50, 300, 10, s.maxHp)}
+        ${setRow('MAX HP (AT LEVEL 1)', 'maxHp', 50, 300, 10, s.maxHp)}
+        <p class="hint" style="margin-top:4px">Max HP grows +5 per level — at your level your max is <b>${maxHp()}</b> HP.</p>
       </div>
 
       <div class="set-sec">
@@ -1413,7 +1471,8 @@ const RULES_TEXT = `
 <div class="rules-row"><span class="rules-num">12</span><div><b>System Ranks.</b> Your rank climbs with your power, lobby by lobby: BRONZE → SILVER → GOLD → PLATINUM → DIAMOND → CROWN. Default ladder: SILVER at level 5, GOLD at 10, PLATINUM at 15, DIAMOND at 20, CROWN at 30 — you can move every step in Settings (Leveling Curve). Your best quest day sits under the rank card.</div></div>
 <div class="rules-row"><span class="rules-num">13</span><div><b>Crates.</b> Each day the System offers three crates — a challenge, not a mission: Wooden (earn 100 EXP, small reward), Gold (earn 250 EXP, medium reward), Diamond (earn 500 EXP + 5 quests, big reward). Choose ONE — the clock starts immediately and you cannot switch. Beat the goal and the crate is UNLOCKED — tap OPEN to collect your reward (Wooden 20–45 ◈ · Gold 50–100 ◈, potion, title · Diamond 120–220 ◈, Streak Saver, title). Forget to open it by midnight? It collects itself automatically.</div></div>
 <div class="rules-row"><span class="rules-num">14</span><div><b>Chests &amp; Collection.</b> The Shop has a Free Supply (10–30 ◈, once a day) and a Mystery Chest (60 ◈) with random drops: gold, EXP, HP Potion, Streak Saver, or a new title. Your Badge Collection shows every badge you have earned — the locked ones wait there until you earn them. Bonus titles from chests can be worn on your card.</div></div>
-<div class="rules-row"><span class="rules-num">15</span><div><b>Your life, your rules.</b> Every number on this page — EXP, gold, HP penalties, boss HP, blessing size, theme, quest layout — can be changed in Settings → Game Master. The System obeys you, Player. Even this book does not stop you rewriting the world.</div></div>
+<div class="rules-row"><span class="rules-num">15</span><div><b>Seasons.</b> The System runs in seasons, like the great lobbies — each one lasts a month, counted from the day you were awakened. When a new season begins, your rank drops two steps (never below BRONZE); your level and progress stay. Push your rank back up. No one stays on top forever.</div></div>
+<div class="rules-row"><span class="rules-num">16</span><div><b>Your life, your rules.</b> Every number on this page — EXP, gold, HP, bosses, seasons, themes, layouts, the rank ladder — can be changed in Settings → Game Master. The System obeys you, Player. Even this book does not stop you rewriting the world.</div></div>
 `;
 
 function openRulesBook(){
@@ -1598,7 +1657,7 @@ function openChest(free){
     const before = levelFromExp(state.exp);
     state.exp += res.amount;
     const after = levelFromExp(state.exp);
-    if(after.level > before.level) levelUpFX(before.level, after.level, rankForLevel(before.level), rankForLevel(after.level));
+    if(after.level > before.level) levelUpFX(before.level, after.level, rankAtExp(before.exp), rankAtExp(state.exp));
   }
   save(); renderAll(); sfxLevelUp();
   showChestResult({ icon: res.icon, title:'Mystery Chest', desc: res.desc, sub:'Drops: gold · EXP · potions · savers · sigils · titles' });
@@ -1668,7 +1727,7 @@ function claimCrate(){
     const before = levelFromExp(state.exp);
     state.exp += res.amount;
     const after = levelFromExp(state.exp);
-    if(after.level > before.level) levelUpFX(before.level, after.level, rankForLevel(before.level), rankForLevel(after.level));
+    if(after.level > before.level) levelUpFX(before.level, after.level, rankAtExp(before.exp), rankAtExp(state.exp));
   }
   c.claimed = true;
   save(); renderAll(); sfxLevelUp();
@@ -1930,7 +1989,7 @@ async function drawCardCanvas(){
   x.fillText('L I F E   R P G', W / 2, 92);
 
   const { level, into, needed } = levelFromExp(state.exp);
-  const rank = rankForLevel(level);
+  const rank = rankAtExp(state.exp);
 
   if(/^data:/.test(state.character.avatar)){
     try{
@@ -2118,6 +2177,7 @@ function init(){
   } else {
     rollover();
     crateReset();
+    seasonTick();
     save();
     el('app').classList.remove('hidden');
     renderAll();

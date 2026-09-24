@@ -667,3 +667,9 @@ body[data-theme="red"] .rl-cell.on{background:var(--red);border-color:var(--red)
 
 /* v5.4 — completed quests */
 .qgrid-empty{grid-column:1/-1;text-align:center;color:var(--muted);font-size:11px;letter-spacing:1px;padding:12px 0;}
+
+/* v5.5 — seasons */
+.rl-season{display:flex;justify-content:space-between;align-items:center;font-size:9px;letter-spacing:2px;
+  color:var(--muted);border:1px solid var(--line-soft);border-radius:8px;padding:5px 10px;margin-bottom:10px;}
+.rl-season span:first-child{color:var(--gold);font-weight:800;}
+.rl-drop{font-size:10px;color:var(--gold);margin-top:8px;letter-spacing:.5px;}
