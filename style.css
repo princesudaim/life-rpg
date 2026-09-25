@@ -983,3 +983,25 @@ body[data-theme="red"] .rl-cell.on{background:var(--red);border-color:var(--red)
   transform: scale(0.65) !important;
   transform-origin: center left !important;
 }
+
+/* Hunter inventory dock on character card */
+.hunter-dock{margin-top:14px;background:rgba(255,255,255,.02);border:1px solid var(--line-soft);border-radius:12px;padding:12px 10px;}
+.hd-head{display:flex;justify-content:space-between;align-items:center;font-size:11px;font-weight:800;letter-spacing:1px;color:var(--muted);margin-bottom:10px;}
+.hd-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+@media(max-width:540px){.hd-grid{grid-template-columns:repeat(2,1fr);gap:6px;}}
+.hd-item{display:flex;align-items:center;gap:8px;background:rgba(0,0,0,.25);border:1px solid rgba(255,255,255,.05);border-radius:8px;padding:6px 8px;}
+.hd-img{width:36px;height:36px;object-fit:contain;filter:drop-shadow(0 2px 6px rgba(0,0,0,.5));flex:0 0 auto;}
+.hd-info{flex:1;min-width:0;display:flex;flex-direction:column;}
+.hd-info b{font-size:11px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.hd-info span{font-size:9.5px;color:var(--muted);}
+.hd-tag{font-size:8.5px;font-weight:800;letter-spacing:.5px;padding:2px 5px;border-radius:4px;background:rgba(255,255,255,.06);color:var(--muted);text-transform:uppercase;}
+.btn.tiny{padding:3px 8px;font-size:9.5px;font-weight:800;border-radius:5px;}
+
+/* img styling for crateVisual and supplyVisual */
+img.cv{object-fit:contain;vertical-align:middle;display:inline-block;}
+img.cv-crate{width:56px;height:56px;}
+.crate-icon img.cv-crate{width:72px;height:72px;}
+img.cv-chest{width:56px;height:56px;}
+img.cv-bag{width:46px;height:46px;}
+img.cv-xp, img.cv-flask, img.cv-ice, img.cv-armor, img.cv-salmon, img.cv-seer, img.cv-frozen-flame{width:46px;height:46px;}
+img.cv.sm{width:24px;height:24px;}

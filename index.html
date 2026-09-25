@@ -12,7 +12,18 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Life RPG">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <link rel="stylesheet" href="style.css?v=64">
+  <link rel="stylesheet" href="style.css?v=65">
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(regs => {
+        for (let r of regs) {
+          if (!r.active || !r.active.scriptURL.includes('v=65')) {
+            r.unregister();
+          }
+        }
+      });
+    }
+  </script>
 </head>
 <body>
 
@@ -194,6 +205,6 @@
   <div id="fxLayer"></div>
   <div id="toast" class="toast hidden"></div>
 
-  <script src="app.js?v=64"></script>
+  <script src="app.js?v=65"></script>
 </body>
 </html>
