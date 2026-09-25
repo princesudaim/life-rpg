@@ -1255,36 +1255,44 @@ function systemCard(){
   </div>`;
 }
 
-function questPath(){
-  const dailies = state.quests.filter(q => q.freq === 'daily');
-  if(!dailies.length) return '';
-  const shown = state.settings.hideCompleted ? dailies.filter(q => q.timesDone < q.dailyLimit) : dailies;
-  const nodes = shown.map(q => {
-    const isDone = q.timesDone >= q.dailyLimit;
-    return `
-    <div class="qg-card ${isDone ? 'done' : ''}" data-check-q="${q.id}">
-      <div class="qg-top">
-        <span class="qg-ic" data-edit-q="${q.id}" title="Tap icon to customize">${esc(q.icon || '⭐')}</span>
-        <span class="qg-name">${esc(q.name)}${q.dailyLimit > 1 ? ` <small>(${q.timesDone}/${q.dailyLimit})</small>` : ''}</span>
-      </div>
-      <div class="qg-sub">+${q.exp} EXP · +${q.gold} ◈</div>
-      <button class="check-btn qg-btn" data-q="${q.id}" ${isDone ? 'disabled' : ''}>${isDone ? '✓ Done' : 'Check In'}</button>
-    </div>`;
-  }).join('');
-
-  const doneCount = dailies.filter(q => q.timesDone >= q.dailyLimit).length;
-  const others = state.quests.filter(q => q.freq !== 'daily');
-  const chapters = others.length ? `
-    <div class="sys-window" style="margin-top:14px">
-      <div class="win-bar"><span class="win-title">Chapters</span><span class="win-sub">weekly &amp; monthly · ${others.length} quests</span></div>
-      <div class="win-body">${others.map(questCard).join('')}</div>
-    </div>` : '';
-
+function questCardGrid(q){
+  const done = q.timesDone >= q.dailyLimit;
+  const left = q.freq !== 'daily' ? ` · <span class="q-days">${daysLeft(q.freq)}d left</span>` : '';
   return `
-    <div class="path-section">
-      <div class="path-head"><span class="path-cat">Daily Quests</span><span class="g-count">${doneCount}/${dailies.length}</span></div>
-      <div class="qgrid">${nodes || '<div class="qgrid-empty">✓ All done for today</div>'}</div>
-    </div>${chapters}`;
+  <div class="qg-card ${done ? 'done' : ''}" data-check-q="${q.id}">
+    <div class="qg-top">
+      <span class="qg-ic" data-edit-q="${q.id}" title="Tap icon to customize">${esc(q.icon || '⭐')}</span>
+      <div class="qg-title-wrap">
+        <span class="qg-name">${esc(q.name)}</span>
+        ${q.dailyLimit > 1 ? `<span class="qg-limit">${q.timesDone}/${q.dailyLimit}</span>` : ''}
+      </div>
+    </div>
+    <div class="qg-sub">+${q.exp} EXP · +${q.gold} ◈${left}</div>
+    <button class="check-btn qg-btn" data-q="${q.id}" ${done ? 'disabled' : ''}>${done ? '✓ Done' : 'Check In'}</button>
+  </div>`;
+}
+
+function questGroupGrid(freq, label){
+  const all = state.quests.filter(q => q.freq === freq);
+  if(!all.length) return '';
+  const group = (freq === 'daily' && state.settings.hideCompleted) ? all.filter(q => q.timesDone < q.dailyLimit) : all;
+  const done = all.filter(q => q.timesDone >= q.dailyLimit).length;
+  const cards = group.length
+    ? group.map(questCardGrid).join('')
+    : (done ? `<div class="qgrid-empty">✓ All ${label.toLowerCase()} quests done for today</div>`
+            : `<div class="qgrid-empty">No ${label.toLowerCase()} quests yet — tap "+ New".</div>`);
+  return `
+    <div class="path-section" style="${freq !== 'daily' ? 'margin-top:14px;' : ''}">
+      <div class="path-head"><span class="path-cat">${label} Quests</span><span class="g-count">${done}/${all.length}</span></div>
+      <div class="qgrid">${cards}</div>
+    </div>`;
+}
+
+function questPath(){
+  const daily = questGroupGrid('daily', 'Daily');
+  const weekly = questGroupGrid('weekly', 'Weekly');
+  const monthly = questGroupGrid('monthly', 'Monthly');
+  return daily + weekly + monthly;
 }
 
 function renderQuests(){
@@ -2775,7 +2783,7 @@ function init(){
 
   if('serviceWorker' in navigator && /^https?:$/.test(location.protocol)){
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('sw.js?v=68', { updateViaCache: 'none' }).then(reg => {
+      navigator.serviceWorker.register('sw.js?v=69', { updateViaCache: 'none' }).then(reg => {
         reg.update();
         reg.onupdatefound = () => {
           const inst = reg.installing;

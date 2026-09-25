@@ -17,7 +17,7 @@
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.getRegistrations().then(regs => {
         for (let r of regs) {
-          if (!r.active || !r.active.scriptURL.includes('v=68')) {
+          if (!r.active || !r.active.scriptURL.includes('v=69')) {
             r.unregister();
           }
         }
@@ -765,7 +765,10 @@ body[data-theme="red"] .rl-cell.on{background:var(--red);border-color:var(--red)
   filter:drop-shadow(0 0 8px rgba(251,191,36,.8));}
 .cv-gem{width:34px;height:34px;background:linear-gradient(160deg,#a5f3fc,#22d3ee 55%,#0e7490);
   clip-path:polygon(50% 0,100% 38%,82% 100%,18% 100%,0 38%);filter:drop-shadow(0 0 10px rgba(34,211,238,.8));}
-.sc-icon, .sri{font-size:0;line-height:0;display:flex;align-items:center;justify-content:center;}
+.sc-icon{font-size:32px;line-height:1.2;min-height:44px;display:flex;align-items:center;justify-content:center;flex:0 0 auto;}
+.sc-icon img.cv{width:48px;height:48px;object-fit:contain;}
+.sri{font-size:28px;line-height:1;display:flex;align-items:center;justify-content:center;flex:0 0 auto;}
+.sri img.cv{width:28px;height:28px;}
 /* chest result modal: drawn icon + tiers */
 .chest-icon{font-size:0 !important;display:flex;justify-content:center;align-items:center;min-height:70px;}
 .chest-icon .cv{transform:scale(1.5);}
@@ -886,26 +889,54 @@ body[data-theme="red"] .rl-cell.on{background:var(--red);border-color:var(--red)
   filter:drop-shadow(0 0 12px rgba(56,189,248,.95));
   transform-origin:50% 100%;animation:flick 1.1s ease-in-out infinite alternate;}
 
-/* 3-across mobile grids for quests and shop */
-.qgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px;}
-.shop-grid-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+/* ================= QUEST & SHOP GRIDS ================= */
+.qgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:10px;}
+.shop-grid-cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;}
 
+.qg-card{display:flex;flex-direction:column;gap:6px;padding:12px 10px 10px;border:1px solid var(--line-soft);
+  border-radius:12px;background:rgba(10,18,38,.55);cursor:pointer;transition:border-color .15s, opacity .15s, transform .1s;min-width:0;}
+.qg-card:hover{border-color:var(--line);}
+.qg-card:active{transform:scale(.98);}
+.qg-card.done{border-color:rgba(52,211,153,.3);opacity:.45;}
+.qg-top{display:flex;align-items:flex-start;gap:8px;min-width:0;}
+.qg-ic{font-size:22px;line-height:1;flex:0 0 auto;padding-top:1px;}
+.qg-title-wrap{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;}
+.qg-name{font-size:13px;font-weight:700;color:var(--text);line-height:1.3;word-break:break-word;overflow-wrap:break-word;}
+.qg-limit{font-size:9.5px;color:var(--muted);font-weight:600;}
+.qg-sub{font-size:11px;color:var(--muted);letter-spacing:.3px;line-height:1.35;}
+.qg-sub .q-days{color:#fca5a5;font-weight:600;}
+.qg-btn{margin-top:auto;min-width:0;width:100%;padding:8px 6px;font-size:11px;font-weight:800;border-radius:8px;}
+
+.shop-card{border:1px solid var(--line-soft);border-radius:14px;padding:14px 10px 12px;background:rgba(10,18,38,.55);
+  display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;min-width:0;transition:border-color .15s;}
+.shop-card:hover{border-color:var(--line);}
+.shop-card .sc-icon{font-size:32px;line-height:1.2;min-height:44px;display:flex;align-items:center;justify-content:center;}
+.shop-card .sc-name{font-size:12.5px;font-weight:800;color:var(--text);line-height:1.3;word-break:break-word;overflow-wrap:break-word;max-width:100%;}
+.shop-card .sc-desc{font-size:11px;color:var(--gold);font-weight:700;line-height:1.4;min-height:22px;}
+.shop-card .sc-actions{display:flex;gap:6px;margin-top:auto;width:100%;justify-content:center;}
+.shop-card .btn{width:100%;padding:8px 6px;font-size:11px;font-weight:800;border-radius:8px;}
+
+/* On mobile phones: clean, balanced 2-column layout */
 @media(max-width:640px){
-  .qgrid{grid-template-columns:repeat(3,1fr) !important;gap:5px !important;}
-  .shop-grid-cards{grid-template-columns:repeat(3,1fr) !important;gap:5px !important;}
+  .qgrid{grid-template-columns:repeat(2,minmax(0,1fr)) !important;gap:8px !important;}
+  .shop-grid-cards{grid-template-columns:repeat(2,minmax(0,1fr)) !important;gap:8px !important;}
 
-  .qg-card{padding:7px 4px 6px !important;border-radius:10px;gap:3px;}
-  .qg-ic{font-size:16px;}
-  .qg-name{font-size:10px !important;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-  .qg-sub{font-size:8px !important;letter-spacing:0;}
-  .qg-btn{padding:5px 2px !important;font-size:9px !important;margin-top:2px;border-radius:6px;}
+  .qg-card{padding:10px 8px 8px !important;gap:5px !important;}
+  .qg-ic{font-size:18px !important;}
+  .qg-name{font-size:12px !important;line-height:1.25 !important;}
+  .qg-sub{font-size:9.5px !important;letter-spacing:0 !important;}
+  .qg-btn{padding:7px 4px !important;font-size:10px !important;}
 
-  .shop-card{padding:8px 3px 6px !important;border-radius:10px;gap:3px;}
-  .shop-card .sc-name{font-size:10px !important;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-  .shop-card .sc-desc{font-size:8px !important;line-height:1.2;min-height:18px;}
-  .shop-card .sc-actions{gap:3px;}
-  .shop-card .btn{padding:4px 3px !important;font-size:8.5px !important;border-radius:6px;}
-  .shop-card .cv{transform:scale(.72);transform-origin:center;}
+  .shop-card{padding:10px 8px 8px !important;gap:4px !important;}
+  .shop-card .sc-icon{font-size:28px !important;min-height:38px !important;}
+  .shop-card .sc-name{font-size:11.5px !important;line-height:1.2 !important;}
+  .shop-card .sc-desc{font-size:9.5px !important;min-height:18px !important;}
+  .shop-card .sc-actions .btn{padding:6px 4px !important;font-size:10px !important;}
+}
+
+@media(max-width:320px){
+  .qgrid{grid-template-columns:1fr !important;}
+  .shop-grid-cards{grid-template-columns:1fr !important;}
 }
 
 /* ================= v6.3 — real 3D game assets (no coded boxes) ================= */
@@ -2553,36 +2584,44 @@ function systemCard(){
   </div>`;
 }
 
-function questPath(){
-  const dailies = state.quests.filter(q => q.freq === 'daily');
-  if(!dailies.length) return '';
-  const shown = state.settings.hideCompleted ? dailies.filter(q => q.timesDone < q.dailyLimit) : dailies;
-  const nodes = shown.map(q => {
-    const isDone = q.timesDone >= q.dailyLimit;
-    return `
-    <div class="qg-card ${isDone ? 'done' : ''}" data-check-q="${q.id}">
-      <div class="qg-top">
-        <span class="qg-ic" data-edit-q="${q.id}" title="Tap icon to customize">${esc(q.icon || '⭐')}</span>
-        <span class="qg-name">${esc(q.name)}${q.dailyLimit > 1 ? ` <small>(${q.timesDone}/${q.dailyLimit})</small>` : ''}</span>
-      </div>
-      <div class="qg-sub">+${q.exp} EXP · +${q.gold} ◈</div>
-      <button class="check-btn qg-btn" data-q="${q.id}" ${isDone ? 'disabled' : ''}>${isDone ? '✓ Done' : 'Check In'}</button>
-    </div>`;
-  }).join('');
-
-  const doneCount = dailies.filter(q => q.timesDone >= q.dailyLimit).length;
-  const others = state.quests.filter(q => q.freq !== 'daily');
-  const chapters = others.length ? `
-    <div class="sys-window" style="margin-top:14px">
-      <div class="win-bar"><span class="win-title">Chapters</span><span class="win-sub">weekly &amp; monthly · ${others.length} quests</span></div>
-      <div class="win-body">${others.map(questCard).join('')}</div>
-    </div>` : '';
-
+function questCardGrid(q){
+  const done = q.timesDone >= q.dailyLimit;
+  const left = q.freq !== 'daily' ? ` · <span class="q-days">${daysLeft(q.freq)}d left</span>` : '';
   return `
-    <div class="path-section">
-      <div class="path-head"><span class="path-cat">Daily Quests</span><span class="g-count">${doneCount}/${dailies.length}</span></div>
-      <div class="qgrid">${nodes || '<div class="qgrid-empty">✓ All done for today</div>'}</div>
-    </div>${chapters}`;
+  <div class="qg-card ${done ? 'done' : ''}" data-check-q="${q.id}">
+    <div class="qg-top">
+      <span class="qg-ic" data-edit-q="${q.id}" title="Tap icon to customize">${esc(q.icon || '⭐')}</span>
+      <div class="qg-title-wrap">
+        <span class="qg-name">${esc(q.name)}</span>
+        ${q.dailyLimit > 1 ? `<span class="qg-limit">${q.timesDone}/${q.dailyLimit}</span>` : ''}
+      </div>
+    </div>
+    <div class="qg-sub">+${q.exp} EXP · +${q.gold} ◈${left}</div>
+    <button class="check-btn qg-btn" data-q="${q.id}" ${done ? 'disabled' : ''}>${done ? '✓ Done' : 'Check In'}</button>
+  </div>`;
+}
+
+function questGroupGrid(freq, label){
+  const all = state.quests.filter(q => q.freq === freq);
+  if(!all.length) return '';
+  const group = (freq === 'daily' && state.settings.hideCompleted) ? all.filter(q => q.timesDone < q.dailyLimit) : all;
+  const done = all.filter(q => q.timesDone >= q.dailyLimit).length;
+  const cards = group.length
+    ? group.map(questCardGrid).join('')
+    : (done ? `<div class="qgrid-empty">✓ All ${label.toLowerCase()} quests done for today</div>`
+            : `<div class="qgrid-empty">No ${label.toLowerCase()} quests yet — tap "+ New".</div>`);
+  return `
+    <div class="path-section" style="${freq !== 'daily' ? 'margin-top:14px;' : ''}">
+      <div class="path-head"><span class="path-cat">${label} Quests</span><span class="g-count">${done}/${all.length}</span></div>
+      <div class="qgrid">${cards}</div>
+    </div>`;
+}
+
+function questPath(){
+  const daily = questGroupGrid('daily', 'Daily');
+  const weekly = questGroupGrid('weekly', 'Weekly');
+  const monthly = questGroupGrid('monthly', 'Monthly');
+  return daily + weekly + monthly;
 }
 
 function renderQuests(){
@@ -4073,7 +4112,7 @@ function init(){
 
   if('serviceWorker' in navigator && /^https?:$/.test(location.protocol)){
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('sw.js?v=68', { updateViaCache: 'none' }).then(reg => {
+      navigator.serviceWorker.register('sw.js?v=69', { updateViaCache: 'none' }).then(reg => {
         reg.update();
         reg.onupdatefound = () => {
           const inst = reg.installing;

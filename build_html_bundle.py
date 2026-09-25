@@ -26,9 +26,9 @@ pre_style = re.sub(
     pre_style
 )
 
-# Update cache version to v=68
-pre_style = re.sub(r'v=\d+', 'v=68', pre_style)
-js_content = re.sub(r'sw\.js\?v=\d+', 'sw.js?v=68', js_content)
+# Update cache version to v=69
+pre_style = re.sub(r'v=\d+', 'v=69', pre_style)
+js_content = re.sub(r'sw\.js\?v=\d+', 'sw.js?v=69', js_content)
 
 # Build bundled html
 bundled = f"""{pre_style}<style>
@@ -46,4 +46,4 @@ with open("/home/user/life-rpg/index.html", "w", encoding="utf-8") as f:
 with open("/home/user/life-rpg/app.js", "w", encoding="utf-8") as f:
     f.write(js_content)
 
-print(f"Successfully bundled index.html ({len(bundled)} bytes) with cache v=68")
+print(f"Successfully bundled index.html ({len(bundled)} bytes) with cache v=69")
