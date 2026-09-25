@@ -19,8 +19,16 @@ body_match = re.search(r'</style>([\s\S]*?)<script>[\s\S]*?const KEY =', html_or
 assert body_match, "Could not match body markup"
 body_markup = body_match.group(1)
 
-# Update cache version in pre_style
-pre_style = re.sub(r'v=\d+', 'v=67', pre_style)
+# Ensure viewport meta tag has maximum-scale=1.0, user-scalable=no
+pre_style = re.sub(
+    r'<meta name="viewport"[^>]*>',
+    '<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">',
+    pre_style
+)
+
+# Update cache version to v=68
+pre_style = re.sub(r'v=\d+', 'v=68', pre_style)
+js_content = re.sub(r'sw\.js\?v=\d+', 'sw.js?v=68', js_content)
 
 # Build bundled html
 bundled = f"""{pre_style}<style>
@@ -35,4 +43,7 @@ bundled = f"""{pre_style}<style>
 with open("/home/user/life-rpg/index.html", "w", encoding="utf-8") as f:
     f.write(bundled.strip() + "\n")
 
-print(f"Successfully bundled index.html ({len(bundled)} bytes)")
+with open("/home/user/life-rpg/app.js", "w", encoding="utf-8") as f:
+    f.write(js_content)
+
+print(f"Successfully bundled index.html ({len(bundled)} bytes) with cache v=68")

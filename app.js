@@ -1771,7 +1771,8 @@ create policy "open personal sync"
   if(orb) orb.addEventListener('click', openRulesBook);
   document.querySelectorAll('.theme-dot').forEach(d => d.addEventListener('click', () => {
     state.settings.theme = d.dataset.theme;
-    save(); applyTheme(); renderAll(); toast('Theme set.');
+    save(); applyTheme();
+  setupSwipeNav(); renderAll(); toast('Theme set.');
   }));
 
   el('syncUrl').addEventListener('change', e => { state.settings.sync.url = e.target.value.trim(); save(); });
@@ -2559,14 +2560,94 @@ function toggleViewMode(){
   save(); renderAll();
 }
 
+const TABS_ORDER = ['character', 'quests', 'crates', 'log', 'shop', 'settings'];
+
 function switchTab(tab){
-  el('tabbar').querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+  if(!TABS_ORDER.includes(tab)) return;
+  const tb = el('tabbar');
+  if(tb) tb.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
   document.querySelectorAll('#sidebar .sb-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
-  ['character','quests','crates','log','shop','settings'].forEach(v =>
-    el('view-' + v).classList.toggle('hidden', v !== tab));
+  TABS_ORDER.forEach(v => {
+    const viewEl = el('view-' + v);
+    if(viewEl) viewEl.classList.toggle('hidden', v !== tab);
+  });
   state.view = tab;
   if(window.innerWidth < 900) document.body.classList.remove('sb-open');
   renderAll();
+}
+
+function swipeTab(delta){
+  const cur = state.view || 'character';
+  const idx = TABS_ORDER.indexOf(cur);
+  if(idx === -1) return;
+  const target = idx + delta;
+  if(target >= 0 && target < TABS_ORDER.length){
+    switchTab(TABS_ORDER[target]);
+  }
+}
+
+let __swipeSuppressClick = false;
+
+function setupSwipeNav(){
+  let touchStartX = 0;
+  let touchStartY = 0;
+  let touchStartTime = 0;
+  let isSwiping = false;
+
+  window.addEventListener('touchstart', e => {
+    if (document.body.classList.contains('sb-open')) return;
+    if (document.querySelector('.overlay:not(.hidden)')) return;
+
+    const t = e.target;
+    if (t && t.closest && t.closest('input, textarea, select, button, .theme-dot, .rl-cell, .chip, [type=range]')) {
+      isSwiping = false;
+      return;
+    }
+
+    if (e.touches && e.touches.length === 1) {
+      touchStartX = e.touches[0].clientX;
+      touchStartY = e.touches[0].clientY;
+      touchStartTime = Date.now();
+      isSwiping = true;
+    }
+  }, { passive: true });
+
+  window.addEventListener('touchend', e => {
+    if (!isSwiping) return;
+    isSwiping = false;
+
+    if (!e.changedTouches || e.changedTouches.length === 0) return;
+    const touchEndX = e.changedTouches[0].clientX;
+    const touchEndY = e.changedTouches[0].clientY;
+    const duration = Date.now() - touchStartTime;
+
+    const dx = touchEndX - touchStartX;
+    const dy = touchEndY - touchStartY;
+    const absDx = Math.abs(dx);
+    const absDy = Math.abs(dy);
+
+    // Predominantly horizontal swipe gesture:
+    // absDx >= 45px, absDx > absDy * 1.4, duration < 500ms
+    if (absDx >= 45 && absDx > absDy * 1.4 && duration < 500) {
+      __swipeSuppressClick = true;
+      setTimeout(() => { __swipeSuppressClick = false; }, 300);
+
+      if (dx < 0) {
+        // Swiped left -> advance to next tab (e.g. Player -> Quests)
+        swipeTab(1);
+      } else {
+        // Swiped right -> go to previous tab (e.g. Quests -> Player)
+        swipeTab(-1);
+      }
+    }
+  }, { passive: true });
+
+  window.addEventListener('click', e => {
+    if (__swipeSuppressClick) {
+      e.stopPropagation();
+      e.preventDefault();
+    }
+  }, true);
 }
 
 /* ---------------- first run ---------------- */
@@ -2694,7 +2775,7 @@ function init(){
 
   if('serviceWorker' in navigator && /^https?:$/.test(location.protocol)){
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('sw.js?v=67', { updateViaCache: 'none' }).then(reg => {
+      navigator.serviceWorker.register('sw.js?v=68', { updateViaCache: 'none' }).then(reg => {
         reg.update();
         reg.onupdatefound = () => {
           const inst = reg.installing;
