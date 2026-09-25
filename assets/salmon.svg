@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <radialGradient id="sglow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#fb923c" stop-opacity="0.45"/>
+      <stop offset="100%" stop-color="#ea580c" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="fishmeat" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#fbcfe8"/>
+      <stop offset="25%" stop-color="#fb7185"/>
+      <stop offset="60%" stop-color="#f97316"/>
+      <stop offset="100%" stop-color="#ea580c"/>
+    </linearGradient>
+    <linearGradient id="crust" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#7c2d12"/>
+      <stop offset="50%" stop-color="#c2410c"/>
+      <stop offset="100%" stop-color="#ea580c"/>
+    </linearGradient>
+    <filter id="ssh">
+      <feDropShadow dx="0" dy="4" stdDeviation="5" flood-color="#000" flood-opacity="0.5"/>
+    </filter>
+  </defs>
+  <ellipse cx="64" cy="68" rx="54" ry="40" fill="url(#sglow)"/>
+  <g filter="url(#ssh)">
+    <!-- Platter / Slate -->
+    <ellipse cx="64" cy="74" rx="52" ry="26" fill="#1e293b" stroke="#334155" stroke-width="2"/>
+    <ellipse cx="64" cy="72" rx="46" ry="21" fill="#0f172a"/>
+    <!-- Salmon Steak Body -->
+    <path d="M30 68 C34 50, 94 50, 98 68 C100 80, 88 88, 64 88 C40 88, 28 80, 30 68 Z" fill="url(#fishmeat)" stroke="#9a3412" stroke-width="2"/>
+    <!-- Crispy Skin Layer -->
+    <path d="M29 68 C33 54, 95 54, 99 68 L98 72 C94 58, 34 58, 30 72 Z" fill="url(#crust)"/>
+    <!-- Salmon Flake Segments (White Striations) -->
+    <path d="M44 60 Q52 70 48 80" stroke="#fef2f2" stroke-width="2" stroke-linecap="round" fill="none" opacity="0.8"/>
+    <path d="M56 58 Q64 68 60 82" stroke="#fef2f2" stroke-width="2" stroke-linecap="round" fill="none" opacity="0.8"/>
+    <path d="M68 58 Q76 68 72 82" stroke="#fef2f2" stroke-width="2" stroke-linecap="round" fill="none" opacity="0.8"/>
+    <path d="M80 60 Q88 70 84 80" stroke="#fef2f2" stroke-width="2" stroke-linecap="round" fill="none" opacity="0.8"/>
+    <!-- Grill Marks -->
+    <line x1="42" y1="62" x2="52" y2="76" stroke="#431407" stroke-width="2.5" stroke-linecap="round" opacity="0.85"/>
+    <line x1="56" y1="62" x2="66" y2="76" stroke="#431407" stroke-width="2.5" stroke-linecap="round" opacity="0.85"/>
+    <line x1="70" y1="62" x2="80" y2="76" stroke="#431407" stroke-width="2.5" stroke-linecap="round" opacity="0.85"/>
+    <!-- Lemon Wedge -->
+    <path d="M82 72 A12 12 0 0 1 98 84 Z" fill="#facc15" stroke="#ca8a04" stroke-width="1.5"/>
+    <circle cx="88" cy="78" r="2" fill="#fef08a"/>
+    <!-- Herb Garnish (Parsley / Rosemary) -->
+    <path d="M48 64 Q54 60 58 64 Q62 60 66 64" stroke="#22c55e" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+    <circle cx="58" cy="62" r="1.5" fill="#4ade80"/>
+    <!-- Steam Wisps -->
+    <path d="M50 48 Q46 40 50 34" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" fill="none" opacity="0.5"/>
+    <path d="M64 44 Q60 36 64 28" stroke="#ffffff" stroke-width="2" stroke-linecap="round" fill="none" opacity="0.6"/>
+    <path d="M78 48 Q74 40 78 34" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" fill="none" opacity="0.5"/>
+  </g>
+</svg>

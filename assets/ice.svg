@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <radialGradient id="iceglow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.7"/>
+      <stop offset="100%" stop-color="#0284c7" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="icetop" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#f0f9ff"/>
+      <stop offset="100%" stop-color="#7dd3fc"/>
+    </linearGradient>
+    <linearGradient id="icemid" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#38bdf8"/>
+      <stop offset="100%" stop-color="#0284c7"/>
+    </linearGradient>
+    <linearGradient id="icedark" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0284c7"/>
+      <stop offset="100%" stop-color="#0c4a6e"/>
+    </linearGradient>
+    <filter id="icesh">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#000" flood-opacity="0.5"/>
+    </filter>
+  </defs>
+  <circle cx="64" cy="64" r="50" fill="url(#iceglow)"/>
+  <g filter="url(#icesh)">
+    <!-- Crystal Facets -->
+    <polygon points="64,16 96,44 64,68 32,44" fill="url(#icetop)" stroke="#e0f2fe" stroke-width="1.5"/>
+    <polygon points="32,44 64,68 64,112 18,72" fill="url(#icemid)" stroke="#bae6fd" stroke-width="1.5"/>
+    <polygon points="64,68 96,44 110,72 64,112" fill="url(#icedark)" stroke="#38bdf8" stroke-width="1.5"/>
+    <polygon points="64,68 64,112 78,82" fill="#0369a1" opacity="0.6"/>
+    <!-- Top Highlight -->
+    <polygon points="64,22 84,44 64,60 44,44" fill="#ffffff" opacity="0.5"/>
+    <line x1="64" y1="16" x2="64" y2="112" stroke="#ffffff" stroke-width="2" opacity="0.7"/>
+    <line x1="32" y1="44" x2="96" y2="44" stroke="#ffffff" stroke-width="1.5" opacity="0.7"/>
+    <!-- Frost Sparkles -->
+    <polygon points="64,28 66,34 72,36 66,38 64,44 62,38 56,36 62,34" fill="#ffffff"/>
+    <circle cx="24" cy="38" r="2" fill="#e0f2fe"/>
+    <circle cx="104" cy="54" r="2.5" fill="#e0f2fe"/>
+    <circle cx="88" cy="96" r="2" fill="#e0f2fe"/>
+  </g>
+</svg>

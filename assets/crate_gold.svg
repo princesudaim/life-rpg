@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <radialGradient id="gcglow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#fef08a" stop-opacity="0.6"/>
+      <stop offset="100%" stop-color="#ca8a04" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="goldplate" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#fef9c3"/>
+      <stop offset="35%" stop-color="#facc15"/>
+      <stop offset="70%" stop-color="#ca8a04"/>
+      <stop offset="100%" stop-color="#854d0e"/>
+    </linearGradient>
+    <linearGradient id="goldtrim2" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="40%" stop-color="#fde047"/>
+      <stop offset="100%" stop-color="#a16207"/>
+    </linearGradient>
+    <filter id="gcsh">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#000" flood-opacity="0.55"/>
+    </filter>
+  </defs>
+  <circle cx="64" cy="66" r="50" fill="url(#gcglow)"/>
+  <g filter="url(#gcsh)">
+    <!-- Golden Crate Body -->
+    <rect x="22" y="24" width="84" height="84" rx="8" fill="url(#goldplate)" stroke="#713f12" stroke-width="3"/>
+    <!-- Sunburst / Diamond Emboss -->
+    <polygon points="64,32 98,66 64,100 30,66" fill="url(#goldtrim2)" opacity="0.6"/>
+    <!-- Outer Heavy Gold Rim -->
+    <rect x="20" y="22" width="88" height="88" rx="8" fill="none" stroke="url(#goldtrim2)" stroke-width="5"/>
+    <!-- Corner Gem Bezels -->
+    <circle cx="28" cy="30" r="5" fill="#ef4444" stroke="#713f12" stroke-width="1.5"/>
+    <circle cx="100" cy="30" r="5" fill="#ef4444" stroke="#713f12" stroke-width="1.5"/>
+    <circle cx="28" cy="98" r="5" fill="#ef4444" stroke="#713f12" stroke-width="1.5"/>
+    <circle cx="100" cy="98" r="5" fill="#ef4444" stroke="#713f12" stroke-width="1.5"/>
+    <!-- Central Royal Lock Jewel -->
+    <polygon points="64,48 78,66 64,84 50,66" fill="#dc2626" stroke="#fef08a" stroke-width="2.5" filter="drop-shadow(0 0 4px #ef4444)"/>
+    <polygon points="64,54 72,66 64,78 56,66" fill="#f87171"/>
+    <circle cx="64" cy="66" r="3" fill="#ffffff"/>
+  </g>
+  <!-- Sparkles -->
+  <polygon points="64,14 66,20 72,22 66,24 64,30 62,24 56,22 62,20" fill="#fef08a"/>
+  <polygon points="106,44 107,47 110,48 107,49 106,52 105,49 102,48 105,47" fill="#ffffff"/>
+</svg>

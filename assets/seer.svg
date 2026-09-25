@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <radialGradient id="seerglow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#c084fc" stop-opacity="0.8"/>
+      <stop offset="50%" stop-color="#9333ea" stop-opacity="0.3"/>
+      <stop offset="100%" stop-color="#581c87" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="orbglobe" cx="40%" cy="35%" r="65%">
+      <stop offset="0%" stop-color="#f3e8ff"/>
+      <stop offset="25%" stop-color="#d8b4fe"/>
+      <stop offset="60%" stop-color="#9333ea"/>
+      <stop offset="90%" stop-color="#581c87"/>
+      <stop offset="100%" stop-color="#2e1065"/>
+    </radialGradient>
+    <filter id="seersh">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#000" flood-opacity="0.6"/>
+    </filter>
+  </defs>
+  <circle cx="64" cy="64" r="54" fill="url(#seerglow)"/>
+  <g filter="url(#seersh)">
+    <!-- Orbiting Arcane Ring -->
+    <ellipse cx="64" cy="64" rx="48" ry="16" transform="rotate(-25 64 64)" stroke="#e9d5ff" stroke-width="1.5" stroke-dasharray="6 4" fill="none" opacity="0.75"/>
+    <!-- Crystal Orb -->
+    <circle cx="64" cy="64" r="38" fill="url(#orbglobe)" stroke="#e9d5ff" stroke-width="2"/>
+    <!-- Inner Mystical Swirl -->
+    <path d="M46 68 C52 52, 76 52, 82 68 C76 80, 52 80, 46 68 Z" fill="#c084fc" opacity="0.4" filter="blur(2px)"/>
+    <!-- All-Seeing Iris Core -->
+    <ellipse cx="64" cy="64" rx="14" ry="18" fill="#581c87"/>
+    <circle cx="64" cy="64" r="9" fill="#3b0764"/>
+    <circle cx="64" cy="64" r="5" fill="#f5d0fe" filter="drop-shadow(0 0 4px #d8b4fe)"/>
+    <circle cx="64" cy="64" r="2" fill="#ffffff"/>
+    <!-- Specular Highlight Glare -->
+    <ellipse cx="50" cy="48" rx="8" ry="4" transform="rotate(-40 50 48)" fill="#ffffff" opacity="0.75"/>
+    <circle cx="42" cy="56" r="2" fill="#ffffff" opacity="0.8"/>
+    <!-- Magic Runes / Star Specks -->
+    <polygon points="64,18 66,22 70,24 66,26 64,30 62,26 58,24 62,22" fill="#f5d0fe"/>
+    <polygon points="106,78 107,81 110,82 107,83 106,86 105,83 102,82 105,81" fill="#f5d0fe"/>
+    <circle cx="22" cy="74" r="2" fill="#d8b4fe"/>
+    <circle cx="98" cy="40" r="2.5" fill="#d8b4fe"/>
+  </g>
+</svg>

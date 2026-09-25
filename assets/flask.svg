@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <radialGradient id="rfluid" cx="45%" cy="65%" r="55%">
+      <stop offset="0%" stop-color="#fb7185"/>
+      <stop offset="40%" stop-color="#e11d48"/>
+      <stop offset="85%" stop-color="#9f1239"/>
+      <stop offset="100%" stop-color="#4c0519"/>
+    </radialGradient>
+    <radialGradient id="hpglow" cx="50%" cy="65%" r="55%">
+      <stop offset="0%" stop-color="#f43f5e" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#e11d48" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="cork" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#a16207"/>
+      <stop offset="50%" stop-color="#d97706"/>
+      <stop offset="100%" stop-color="#78350f"/>
+    </linearGradient>
+    <filter id="fsh">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#000" flood-opacity="0.55"/>
+    </filter>
+  </defs>
+  <circle cx="64" cy="74" r="48" fill="url(#hpglow)"/>
+  <g filter="url(#fsh)">
+    <!-- Cork -->
+    <polygon points="54,20 74,20 71,32 57,32" fill="url(#cork)" stroke="#451a03" stroke-width="1.5"/>
+    <ellipse cx="64" cy="20" rx="10" ry="2.5" fill="#fde68a"/>
+    <!-- Glass Lip -->
+    <rect x="51" y="30" width="26" height="7" rx="3.5" fill="#93c5fd" fill-opacity="0.5" stroke="#bae6fd" stroke-width="1.5"/>
+    <!-- Neck -->
+    <rect x="56" y="35" width="16" height="18" fill="#60a5fa" fill-opacity="0.2" stroke="#93c5fd" stroke-width="1.5"/>
+    <!-- Bottle Body (Potion Flask) -->
+    <path d="M56 48 C42 56, 26 72, 26 90 C26 108, 43 118, 64 118 C85 118, 102 108, 102 90 C102 72, 86 56, 72 48 Z" 
+          fill="#1e293b" fill-opacity="0.3" stroke="#bae6fd" stroke-width="2.5"/>
+    <!-- Fluid Contents -->
+    <path d="M31 88 C31 74, 45 62, 57 56 C57 56, 71 56, 71 56 C83 62, 97 74, 97 88 C97 104, 82 114, 64 114 C46 114, 31 104, 31 88 Z" 
+          fill="url(#rfluid)"/>
+    <!-- Liquid Surface Wave -->
+    <path d="M36 78 Q50 72 64 78 T92 78" stroke="#fecdd3" stroke-width="2" fill="none" opacity="0.8"/>
+    <!-- Bubbles -->
+    <circle cx="52" cy="88" r="4" fill="#fda4af" opacity="0.8"/>
+    <circle cx="74" cy="82" r="3" fill="#fecdd3" opacity="0.9"/>
+    <circle cx="62" cy="98" r="5" fill="#f43f5e" opacity="0.9"/>
+    <circle cx="60" cy="96" r="1.5" fill="#ffffff" opacity="0.9"/>
+    <!-- Cross Symbol on Bottle -->
+    <rect x="60" y="80" width="8" height="22" rx="2" fill="#ffffff" opacity="0.9"/>
+    <rect x="53" y="87" width="22" height="8" rx="2" fill="#ffffff" opacity="0.9"/>
+    <!-- Glass Highlights / Specular Glare -->
+    <path d="M36 84 C34 94, 38 106, 48 112" stroke="#ffffff" stroke-width="3" stroke-linecap="round" fill="none" opacity="0.6"/>
+    <path d="M68 40 L70 48" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" fill="none" opacity="0.7"/>
+    <ellipse cx="46" cy="68" rx="6" ry="12" transform="rotate(-30 46 68)" fill="#ffffff" opacity="0.3"/>
+  </g>
+</svg>

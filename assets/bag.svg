@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <radialGradient id="bglow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#fde047" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#ca8a04" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="pouch" cx="40%" cy="50%" r="60%">
+      <stop offset="0%" stop-color="#fef08a"/>
+      <stop offset="35%" stop-color="#eab308"/>
+      <stop offset="75%" stop-color="#a16207"/>
+      <stop offset="100%" stop-color="#713f12"/>
+    </radialGradient>
+    <linearGradient id="goldcoin" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#fef9c3"/>
+      <stop offset="50%" stop-color="#eab308"/>
+      <stop offset="100%" stop-color="#854d0e"/>
+    </linearGradient>
+    <filter id="bsh">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#000" flood-opacity="0.55"/>
+    </filter>
+  </defs>
+  <circle cx="64" cy="68" r="50" fill="url(#bglow)"/>
+  <g filter="url(#bsh)">
+    <!-- Pouch Frill Top -->
+    <path d="M46 36 C42 22, 54 20, 64 24 C74 20, 86 22, 82 36 Z" fill="url(#pouch)" stroke="#58340c" stroke-width="1.5"/>
+    <!-- Tied String / Rope -->
+    <rect x="42" y="36" width="44" height="6" rx="3" fill="#fef08a" stroke="#854d0e" stroke-width="1.5"/>
+    <circle cx="50" cy="44" r="3" fill="#fde047" stroke="#713f12" stroke-width="1"/>
+    <circle cx="55" cy="46" r="3" fill="#fde047" stroke="#713f12" stroke-width="1"/>
+    <!-- Main Plump Bag Body -->
+    <path d="M42 40 C22 46, 18 80, 24 98 C30 114, 50 118, 64 118 C78 118, 98 114, 104 98 C110 80, 106 46, 86 40 Z" 
+          fill="url(#pouch)" stroke="#58340c" stroke-width="2"/>
+    <!-- Folds / Creases on Sack -->
+    <path d="M38 52 C44 72, 42 90, 48 106" stroke="#713f12" stroke-width="2" stroke-linecap="round" fill="none" opacity="0.6"/>
+    <path d="M90 52 C84 72, 86 90, 80 106" stroke="#713f12" stroke-width="2" stroke-linecap="round" fill="none" opacity="0.6"/>
+    <!-- Embossed Gold Emblem (Diamond ◈) -->
+    <polygon points="64,62 78,76 64,90 50,76" fill="url(#goldcoin)" stroke="#713f12" stroke-width="1.5"/>
+    <polygon points="64,68 72,76 64,84 56,76" fill="#fef08a"/>
+    <!-- Gold Coins spilling at rim -->
+    <circle cx="82" cy="34" r="7" fill="url(#goldcoin)" stroke="#713f12" stroke-width="1"/>
+    <ellipse cx="82" cy="34" rx="4" ry="4" fill="#fef08a"/>
+  </g>
+  <!-- Sparkles -->
+  <polygon points="98,28 100,32 104,33 100,34 98,38 96,34 92,33 96,32" fill="#fef08a"/>
+  <polygon points="28,48 29,51 32,52 29,53 28,56 27,53 24,52 27,51" fill="#fef08a"/>
+</svg>

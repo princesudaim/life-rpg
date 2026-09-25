@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <radialGradient id="armorglow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.5"/>
+      <stop offset="100%" stop-color="#0284c7" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="steel" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#64748b"/>
+      <stop offset="50%" stop-color="#334155"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+    <linearGradient id="steellight" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#94a3b8"/>
+      <stop offset="100%" stop-color="#475569"/>
+    </linearGradient>
+    <linearGradient id="goldtrim" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#fef08a"/>
+      <stop offset="50%" stop-color="#eab308"/>
+      <stop offset="100%" stop-color="#a16207"/>
+    </linearGradient>
+    <filter id="ash">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#000" flood-opacity="0.55"/>
+    </filter>
+  </defs>
+  <circle cx="64" cy="64" r="50" fill="url(#armorglow)"/>
+  <g filter="url(#ash)">
+    <!-- Neck Guard -->
+    <path d="M48 24 C54 28, 74 28, 80 24 L86 34 C76 40, 52 40, 42 34 Z" fill="url(#steellight)" stroke="#1e293b" stroke-width="1.5"/>
+    <!-- Pauldrons (Shoulders) -->
+    <path d="M44 32 L18 42 L24 64 L46 48 Z" fill="url(#steel)" stroke="#0f172a" stroke-width="1.5"/>
+    <path d="M84 32 L110 42 L104 64 L82 48 Z" fill="url(#steel)" stroke="#0f172a" stroke-width="1.5"/>
+    <path d="M18 42 L24 64" stroke="url(#goldtrim)" stroke-width="3"/>
+    <path d="M110 42 L104 64" stroke="url(#goldtrim)" stroke-width="3"/>
+    <!-- Chestplate Main -->
+    <path d="M42 34 L86 34 L96 66 L64 116 L32 66 Z" fill="url(#steel)" stroke="#0f172a" stroke-width="2"/>
+    <!-- Pectoral Flanges -->
+    <polygon points="64,40 84,48 88,68 64,74" fill="url(#steellight)" stroke="#334155" stroke-width="1"/>
+    <polygon points="64,40 44,48 40,68 64,74" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+    <!-- Abdominal Plates -->
+    <polygon points="46,74 64,78 82,74 76,92 64,96 52,92" fill="url(#steel)" stroke="#0f172a" stroke-width="1"/>
+    <!-- Glowing Arcane Core -->
+    <polygon points="64,52 72,64 64,72 56,64" fill="#38bdf8" filter="drop-shadow(0 0 6px #06b6d4)"/>
+    <polygon points="64,56 68,64 64,68 60,64" fill="#ffffff"/>
+    <!-- Edge Highlights -->
+    <path d="M34 66 L64 114 L94 66" stroke="url(#goldtrim)" stroke-width="2" fill="none"/>
+  </g>
+</svg>

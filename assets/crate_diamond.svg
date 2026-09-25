@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <radialGradient id="dcglow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.8"/>
+      <stop offset="60%" stop-color="#0284c7" stop-opacity="0.3"/>
+      <stop offset="100%" stop-color="#082f49" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="obsidian" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1e293b"/>
+      <stop offset="50%" stop-color="#0f172a"/>
+      <stop offset="100%" stop-color="#020617"/>
+    </linearGradient>
+    <linearGradient id="cyanbeam" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#e0f2fe"/>
+      <stop offset="50%" stop-color="#38bdf8"/>
+      <stop offset="100%" stop-color="#0284c7"/>
+    </linearGradient>
+    <filter id="dcsh">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#000" flood-opacity="0.6"/>
+    </filter>
+  </defs>
+  <circle cx="64" cy="66" r="54" fill="url(#dcglow)"/>
+  <g filter="url(#dcsh)">
+    <!-- High-tech Arcane Obsidian Vault -->
+    <rect x="22" y="24" width="84" height="84" rx="10" fill="url(#obsidian)" stroke="#0284c7" stroke-width="2.5"/>
+    <!-- Glowing Cyan Energy Channels -->
+    <path d="M22 66 L106 66" stroke="#38bdf8" stroke-width="3" filter="drop-shadow(0 0 4px #0ea5e9)"/>
+    <path d="M64 24 L64 108" stroke="#38bdf8" stroke-width="3" filter="drop-shadow(0 0 4px #0ea5e9)"/>
+    <!-- Cyber Geometric Frame -->
+    <rect x="32" y="34" width="64" height="64" rx="4" fill="none" stroke="#0ea5e9" stroke-width="1.5" stroke-dasharray="10 4"/>
+    <!-- Outer Cyan Corner Brackets -->
+    <path d="M22 42 L22 24 L40 24" stroke="url(#cyanbeam)" stroke-width="5" fill="none"/>
+    <path d="M106 42 L106 24 L88 24" stroke="url(#cyanbeam)" stroke-width="5" fill="none"/>
+    <path d="M22 86 L22 108 L40 108" stroke="url(#cyanbeam)" stroke-width="5" fill="none"/>
+    <path d="M106 86 L106 108 L88 108" stroke="url(#cyanbeam)" stroke-width="5" fill="none"/>
+    <!-- Central Prismatic Diamond -->
+    <polygon points="64,44 86,66 64,88 42,66" fill="url(#cyanbeam)" stroke="#bae6fd" stroke-width="2.5" filter="drop-shadow(0 0 8px #38bdf8)"/>
+    <polygon points="64,52 78,66 64,80 50,66" fill="#f0f9ff"/>
+    <polygon points="64,56 72,66 64,76 56,66" fill="#38bdf8"/>
+    <circle cx="64" cy="66" r="3" fill="#ffffff"/>
+  </g>
+  <!-- Diamond Sparkles -->
+  <polygon points="64,12 66,18 72,20 66,22 64,28 62,22 56,20 62,18" fill="#e0f2fe"/>
+  <polygon points="108,34 109,37 112,38 109,39 108,42 107,39 104,38 107,37" fill="#38bdf8"/>
+  <polygon points="20,94 21,97 24,98 21,99 20,102 19,99 16,98 19,97" fill="#38bdf8"/>
+</svg>

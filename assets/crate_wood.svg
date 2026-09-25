@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <linearGradient id="wplank" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#b45309"/>
+      <stop offset="50%" stop-color="#92400e"/>
+      <stop offset="100%" stop-color="#713f12"/>
+    </linearGradient>
+    <linearGradient id="wiron" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#94a3b8"/>
+      <stop offset="50%" stop-color="#475569"/>
+      <stop offset="100%" stop-color="#1e293b"/>
+    </linearGradient>
+    <filter id="crsh">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#000" flood-opacity="0.55"/>
+    </filter>
+  </defs>
+  <g filter="url(#crsh)">
+    <!-- Wooden Box Outer -->
+    <rect x="22" y="24" width="84" height="84" rx="6" fill="url(#wplank)" stroke="#381a06" stroke-width="3"/>
+    <!-- Planks Grooves -->
+    <line x1="22" y1="52" x2="106" y2="52" stroke="#451a03" stroke-width="2.5"/>
+    <line x1="22" y1="80" x2="106" y2="80" stroke="#451a03" stroke-width="2.5"/>
+    <!-- Cross Braces -->
+    <line x1="26" y1="28" x2="102" y2="104" stroke="#78350f" stroke-width="12" stroke-linecap="round"/>
+    <line x1="102" y1="28" x2="26" y2="104" stroke="#78350f" stroke-width="12" stroke-linecap="round"/>
+    <line x1="26" y1="28" x2="102" y2="104" stroke="#b45309" stroke-width="8" stroke-linecap="round"/>
+    <line x1="102" y1="28" x2="26" y2="104" stroke="#b45309" stroke-width="8" stroke-linecap="round"/>
+    <!-- Steel Corner Straps -->
+    <rect x="20" y="22" width="16" height="16" fill="url(#wiron)" stroke="#0f172a" stroke-width="1.5"/>
+    <rect x="92" y="22" width="16" height="16" fill="url(#wiron)" stroke="#0f172a" stroke-width="1.5"/>
+    <rect x="20" y="90" width="16" height="16" fill="url(#wiron)" stroke="#0f172a" stroke-width="1.5"/>
+    <rect x="92" y="90" width="16" height="16" fill="url(#wiron)" stroke="#0f172a" stroke-width="1.5"/>
+    <!-- Iron Rivets -->
+    <circle cx="28" cy="30" r="2.5" fill="#cbd5e1" stroke="#0f172a" stroke-width="1"/>
+    <circle cx="100" cy="30" r="2.5" fill="#cbd5e1" stroke="#0f172a" stroke-width="1"/>
+    <circle cx="28" cy="98" r="2.5" fill="#cbd5e1" stroke="#0f172a" stroke-width="1"/>
+    <circle cx="100" cy="98" r="2.5" fill="#cbd5e1" stroke="#0f172a" stroke-width="1"/>
+    <!-- Center Steel Lock Plate -->
+    <rect x="52" y="52" width="24" height="24" rx="4" fill="url(#wiron)" stroke="#0f172a" stroke-width="2"/>
+    <circle cx="64" cy="62" r="3.5" fill="#0f172a"/>
+    <line x1="64" y1="62" x2="64" y2="70" stroke="#0f172a" stroke-width="2" stroke-linecap="round"/>
+    <circle cx="64" cy="62" r="1.5" fill="#94a3b8"/>
+  </g>
+</svg>

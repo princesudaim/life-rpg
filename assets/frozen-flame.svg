@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <radialGradient id="ffglow" cx="50%" cy="60%" r="50%">
+      <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.8"/>
+      <stop offset="50%" stop-color="#6366f1" stop-opacity="0.4"/>
+      <stop offset="100%" stop-color="#0284c7" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="fflame" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0%" stop-color="#1e1b4b"/>
+      <stop offset="30%" stop-color="#4338ca"/>
+      <stop offset="65%" stop-color="#06b6d4"/>
+      <stop offset="90%" stop-color="#38bdf8"/>
+      <stop offset="100%" stop-color="#e0f2fe"/>
+    </linearGradient>
+    <filter id="ffsh">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#000" flood-opacity="0.5"/>
+    </filter>
+  </defs>
+  <circle cx="64" cy="68" r="50" fill="url(#ffglow)"/>
+  <g filter="url(#ffsh)">
+    <!-- Outer Cold Flame -->
+    <path d="M64 16 C76 34, 104 60, 104 86 C104 106, 86 118, 64 118 C42 118, 24 106, 24 86 C24 62, 46 44, 52 26 C58 38, 62 44, 64 16 Z" 
+          fill="url(#fflame)" stroke="#bae6fd" stroke-width="1.5"/>
+    <!-- Frost Crystal Shards inside Flame -->
+    <polygon points="64,48 76,70 64,96 52,70" fill="#e0f2fe" opacity="0.85"/>
+    <polygon points="64,48 76,70 64,96" fill="#7dd3fc" opacity="0.6"/>
+    <!-- Inner Core White Flame -->
+    <path d="M64 56 C70 68, 82 80, 82 92 C82 102, 74 110, 64 110 C54 110, 46 102, 46 92 C46 78, 58 72, 64 56 Z" 
+          fill="#ffffff" opacity="0.9" filter="drop-shadow(0 0 6px #67e8f9)"/>
+    <!-- Crystal Ice Sparkles -->
+    <polygon points="64,30 65,34 69,35 65,36 64,40 63,36 59,35 63,34" fill="#ffffff"/>
+    <circle cx="34" cy="62" r="2" fill="#bae6fd"/>
+    <circle cx="94" cy="62" r="2.5" fill="#bae6fd"/>
+    <circle cx="78" cy="38" r="1.5" fill="#bae6fd"/>
+  </g>
+</svg>

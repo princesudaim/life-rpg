@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <radialGradient id="fglow" cx="50%" cy="65%" r="50%">
+      <stop offset="0%" stop-color="#f97316" stop-opacity="0.85"/>
+      <stop offset="60%" stop-color="#ef4444" stop-opacity="0.3"/>
+      <stop offset="100%" stop-color="#b91c1c" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="fgrad" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0%" stop-color="#991b1b"/>
+      <stop offset="25%" stop-color="#dc2626"/>
+      <stop offset="60%" stop-color="#f97316"/>
+      <stop offset="85%" stop-color="#facc15"/>
+      <stop offset="100%" stop-color="#fef08a"/>
+    </linearGradient>
+    <filter id="flsh">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#000" flood-opacity="0.5"/>
+    </filter>
+  </defs>
+  <circle cx="64" cy="70" r="50" fill="url(#fglow)"/>
+  <g filter="url(#flsh)">
+    <!-- Main Fire Silhouette -->
+    <path d="M64 12 C74 32, 102 54, 102 84 C102 106, 85 118, 64 118 C43 118, 26 106, 26 84 C26 58, 48 40, 54 22 C60 36, 62 40, 64 12 Z" 
+          fill="url(#fgrad)"/>
+    <!-- Middle Tongue of Fire -->
+    <path d="M64 42 C72 58, 88 74, 88 92 C88 106, 77 114, 64 114 C51 114, 40 106, 40 92 C40 74, 54 62, 60 50 C63 60, 65 62, 64 42 Z" 
+          fill="#facc15"/>
+    <!-- Intense Inner White Core -->
+    <path d="M64 68 C70 78, 76 86, 76 96 C76 106, 70 110, 64 110 C58 110, 52 106, 52 96 C52 86, 58 78, 64 68 Z" 
+          fill="#ffffff" opacity="0.95" filter="drop-shadow(0 0 4px #fef08a)"/>
+    <!-- Floating Sparks -->
+    <circle cx="34" cy="46" r="2.5" fill="#fef08a" opacity="0.8"/>
+    <circle cx="88" cy="38" r="2" fill="#fef08a" opacity="0.8"/>
+    <circle cx="68" cy="18" r="1.5" fill="#ffffff" opacity="0.9"/>
+  </g>
+</svg>
