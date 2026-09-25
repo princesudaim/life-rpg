@@ -18,7 +18,7 @@ const RANKS = [
   { r:'BRONZE',   icon:'\u{1F949}', exp:0 },
   { r:'SILVER',   icon:'\u{1F948}', exp:500 },
   { r:'GOLD',     icon:'\u{1F947}', exp:1000 },
-  { r:'PLATINUM', icon:'\u{1F4A0}', exp:1500 },
+  { r:'PLATINUM', icon:'\u{1F3C6}', exp:1500 },
   { r:'DIAMOND',  icon:'\u{1F48E}', exp:2000 },
   { r:'CROWN',    icon:'\u{1F451}', exp:2500 },
 ];
@@ -2631,7 +2631,7 @@ function init(){
 
   if('serviceWorker' in navigator && /^https?:$/.test(location.protocol)){
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('sw.js?v=63', { updateViaCache: 'none' }).then(reg => {
+      navigator.serviceWorker.register('sw.js?v=64', { updateViaCache: 'none' }).then(reg => {
         reg.update();
         reg.onupdatefound = () => {
           const inst = reg.installing;
