@@ -17,7 +17,7 @@
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.getRegistrations().then(regs => {
         for (let r of regs) {
-          if (!r.active || !r.active.scriptURL.includes('v=69')) {
+          if (!r.active || !r.active.scriptURL.includes('v=70')) {
             r.unregister();
           }
         }
@@ -3108,8 +3108,7 @@ create policy "open personal sync"
   if(orb) orb.addEventListener('click', openRulesBook);
   document.querySelectorAll('.theme-dot').forEach(d => d.addEventListener('click', () => {
     state.settings.theme = d.dataset.theme;
-    save(); applyTheme();
-  setupSwipeNav(); renderAll(); toast('Theme set.');
+    save(); applyTheme(); renderAll(); toast('Theme set.');
   }));
 
   el('syncUrl').addEventListener('change', e => { state.settings.sync.url = e.target.value.trim(); save(); });
@@ -3931,54 +3930,57 @@ function setupSwipeNav(){
   let touchStartTime = 0;
   let isSwiping = false;
 
-  window.addEventListener('touchstart', e => {
+  const handleStart = (clientX, clientY, target) => {
     if (document.body.classList.contains('sb-open')) return;
     if (document.querySelector('.overlay:not(.hidden)')) return;
-
-    const t = e.target;
-    if (t && t.closest && t.closest('input, textarea, select, button, .theme-dot, .rl-cell, .chip, [type=range]')) {
-      isSwiping = false;
+    if (target && target.closest && target.closest('input, textarea, select, [type=range]')) {
       return;
     }
+    touchStartX = clientX;
+    touchStartY = clientY;
+    touchStartTime = Date.now();
+    isSwiping = true;
+  };
 
+  const handleEnd = (clientX, clientY) => {
+    if (!isSwiping) return;
+    isSwiping = false;
+
+    const dx = clientX - touchStartX;
+    const dy = clientY - touchStartY;
+    const absDx = Math.abs(dx);
+    const absDy = Math.abs(dy);
+    const duration = Date.now() - touchStartTime;
+
+    // Trigger when horizontal movement is at least 35px, primarily horizontal (absDx > absDy * 1.15), and gesture < 650ms
+    if (absDx >= 35 && absDx > absDy * 1.15 && duration < 650) {
+      __swipeSuppressClick = true;
+      setTimeout(() => { __swipeSuppressClick = false; }, 350);
+
+      // User rule: "when i swipe left i go left the nav or right i go right in nav"
+      if (dx > 0) {
+        // Swipe RIGHT -> go RIGHT in the navigation (e.g. Player -> Quests -> Crates...)
+        swipeTab(1);
+      } else {
+        // Swipe LEFT -> go LEFT in the navigation (e.g. ...Crates -> Quests -> Player)
+        swipeTab(-1);
+      }
+    }
+  };
+
+  window.addEventListener('touchstart', e => {
     if (e.touches && e.touches.length === 1) {
-      touchStartX = e.touches[0].clientX;
-      touchStartY = e.touches[0].clientY;
-      touchStartTime = Date.now();
-      isSwiping = true;
+      handleStart(e.touches[0].clientX, e.touches[0].clientY, e.target);
     }
   }, { passive: true });
 
   window.addEventListener('touchend', e => {
-    if (!isSwiping) return;
-    isSwiping = false;
-
-    if (!e.changedTouches || e.changedTouches.length === 0) return;
-    const touchEndX = e.changedTouches[0].clientX;
-    const touchEndY = e.changedTouches[0].clientY;
-    const duration = Date.now() - touchStartTime;
-
-    const dx = touchEndX - touchStartX;
-    const dy = touchEndY - touchStartY;
-    const absDx = Math.abs(dx);
-    const absDy = Math.abs(dy);
-
-    // Predominantly horizontal swipe gesture:
-    // absDx >= 45px, absDx > absDy * 1.4, duration < 500ms
-    if (absDx >= 45 && absDx > absDy * 1.4 && duration < 500) {
-      __swipeSuppressClick = true;
-      setTimeout(() => { __swipeSuppressClick = false; }, 300);
-
-      if (dx < 0) {
-        // Swiped left -> advance to next tab (e.g. Player -> Quests)
-        swipeTab(1);
-      } else {
-        // Swiped right -> go to previous tab (e.g. Quests -> Player)
-        swipeTab(-1);
-      }
+    if (e.changedTouches && e.changedTouches.length > 0) {
+      handleEnd(e.changedTouches[0].clientX, e.changedTouches[0].clientY);
     }
   }, { passive: true });
 
+  // Prevent accidental clicks after a swipe gesture
   window.addEventListener('click', e => {
     if (__swipeSuppressClick) {
       e.stopPropagation();
@@ -4065,6 +4067,7 @@ function init(){
   if(bd) bd.addEventListener('click', () => document.body.classList.remove('sb-open'));
   if(window.matchMedia && window.matchMedia('(min-width:900px)').matches) document.body.classList.add('sb-open');
   applyTheme();
+  setupSwipeNav();
   const chOk = el('chestOk');
   if(chOk) chOk.addEventListener('click', () => hide(el('chestModal')));
   const chX = el('chestClose');
@@ -4112,7 +4115,7 @@ function init(){
 
   if('serviceWorker' in navigator && /^https?:$/.test(location.protocol)){
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('sw.js?v=69', { updateViaCache: 'none' }).then(reg => {
+      navigator.serviceWorker.register('sw.js?v=70', { updateViaCache: 'none' }).then(reg => {
         reg.update();
         reg.onupdatefound = () => {
           const inst = reg.installing;
